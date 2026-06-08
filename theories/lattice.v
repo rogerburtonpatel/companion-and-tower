@@ -317,131 +317,158 @@ Section inf.
 End inf.
 Global Hint Resolve cap_l cap_r: core.
 
-(** * The complete lattice of monotone endofunctions *)
 
-(*  *)
-Section mon. 
- Context {X} {L: CompleteLattice X}.
- 
- (** monotone endofunctions *)
- Record mon := { body:> X -> X; Hbody: Proper (leq ==> leq) body }.
- 
- (** the following instances are not global: more powerful ones are 
-    given at the end of the section *)
- Existing Instance Hbody.
- Instance Hbody' (f: mon): Proper (weq ==> weq) f.
- Proof. intros x y. rewrite 2weq_spec. now split; apply f. Qed.
+(** * The complete lattice of monotone functions *)
 
- (** constant function *)
- Program Definition const x: mon := {| body y := x |}.
- Next Obligation. intros ? ? ?. reflexivity. Qed.
+(** monotone functions between two complete lattices *)
+Record mon (X Y: Type) {LX: CompleteLattice X} {LY: CompleteLattice Y} :=
+  { body:> X -> Y;
+    Hbody: Proper (leq ==> leq) body }.
+Arguments mon X Y {LX LY}.
+Arguments body {X Y LX LY}.
+Arguments Hbody {X Y LX LY}.
 
- (** identity and composition
-     the monotonicity proofs are transparent to get strong equalities
-     - [id ° f = f ° id = f], and
-     - [f ° (g ° h) = (f ° g) ° h]
-  *)
- Definition id: mon := {| 
-   body x := x; 
-   Hbody x y H := H 
- |}.
+Notation "[ X ⇒ Y ]" := (mon X Y)
+  (at level 0, X at level 200, Y at level 200): lattice.
 
- Definition comp (f g: mon): mon := {|
-   body := fun x => f (g x); 
-   Hbody x y H := Hbody f _ _ (Hbody g _ _ H) 
- |}.
- Infix "°" := comp (at level 20): lattice.
- 
- (** monotone endofunctions form a new complete lattice *)
- #[export] Program Instance CompleteLattice_mon: CompleteLattice mon := {|
-   weq := pointwise_relation X weq;
-   leq := pointwise_relation X leq;
-   sup' I P f := {| body := fun x => sup' P (fun i => f i x) |};
-   inf' I P f := {| body := fun x => inf' P (fun i => f i x) |};
-   cup f g := {| body := fun x => cup (f x) (g x) |};
-   cap f g := {| body := fun x => cap (f x) (g x) |};
-   bot := const bot;
-   top := const top
- |}.
- Next Obligation.   
-   intros x y H. apply sup_spec. intros i Hi.
-   rewrite H. eapply eleq_xsup; eauto.
- Qed.
- Next Obligation.
-   intros x y H. apply inf_spec. intros i Hi.
-   rewrite <-H. eapply eleq_infx; eauto.
- Qed.
- Next Obligation. intros x y H. now rewrite H. Qed.
- Next Obligation. intros x y H. now rewrite H. Qed.
- Next Obligation.
-   unfold pointwise_relation. CL_split. split.
-   now intros f x. intros f g h H H' x. now transitivity (g x).   
-   setoid_rewrite weq_spec. now firstorder.
-   setoid_rewrite sup_spec. now firstorder.
-   setoid_rewrite inf_spec. now firstorder.
-   setoid_rewrite cup_spec. now firstorder.
-   setoid_rewrite cap_spec. now firstorder.
- Qed.
+(** monotone endofunctions are the common special case *)
+Notation endo X := (mon X X).
 
- Global Instance comp_leq: Proper (leq ==> leq ==> leq) comp.
+Existing Instance Hbody.
+Instance Hbody' {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}
+  (f: [X ⇒ Y]): Proper (weq ==> weq) f.
+Proof. intros x y. rewrite 2weq_spec. now split; apply f. Qed.
+
+(** constant function *)
+Program Definition const {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}
+  (y: Y): [X ⇒ Y] := {| body _ := y |}.
+Next Obligation. intros ? ? ?. reflexivity. Qed.
+
+(** identity and composition
+    the monotonicity proofs are transparent to get strong equalities
+    - [id ° f = f ° id = f], and
+    - [f ° (g ° h) = (f ° g) ° h]
+ *)
+Definition id {X} {LX: CompleteLattice X}: [X ⇒ X] :=
+  {| body x := x;
+     Hbody x y H := H |}.
+
+Definition comp {X Y Z}
+  {LX: CompleteLattice X} {LY: CompleteLattice Y} {LZ: CompleteLattice Z}
+  (f: [Y ⇒ Z]) (g: [X ⇒ Y]): [X ⇒ Z] :=
+  {| body x := f (g x);
+     Hbody x y H := Hbody f _ _ (Hbody g _ _ H) |}.
+Infix "°" := comp (at level 20): lattice.
+
+(** monotone functions form a complete lattice *)
+#[export] Program Instance CompleteLattice_mon
+  {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
+  CompleteLattice [X ⇒ Y] := {|
+  weq := pointwise_relation X weq;
+  leq := pointwise_relation X leq;
+  sup' I P f := {| body x := sup' P (fun i => f i x) |};
+  inf' I P f := {| body x := inf' P (fun i => f i x) |};
+  cup f g := {| body x := cup (f x) (g x) |};
+  cap f g := {| body x := cap (f x) (g x) |};
+  bot := const bot;
+  top := const top
+|}.
+Next Obligation.
+  intros x y H. apply sup_spec. intros i Hi.
+  rewrite H. eapply eleq_xsup; eauto.
+Qed.
+Next Obligation.
+  intros x y H. apply inf_spec. intros i Hi.
+  rewrite <-H. eapply eleq_infx; eauto.
+Qed.
+Next Obligation. intros x y H. now rewrite H. Qed.
+Next Obligation. intros x y H. now rewrite H. Qed.
+Next Obligation.
+  unfold pointwise_relation. CL_split. split.
+  now intros f x. intros f g h H H' x. now transitivity (g x).
+  setoid_rewrite weq_spec. now firstorder.
+  setoid_rewrite sup_spec. now firstorder.
+  setoid_rewrite inf_spec. now firstorder.
+  setoid_rewrite cup_spec. now firstorder.
+  setoid_rewrite cap_spec. now firstorder.
+Qed.
+
+(** monotone functions applied to infs/sups *)
+Section mon_apply.
+ Context {X Y: Type} {LX: CompleteLattice X} {LY: CompleteLattice Y}.
+
+ Lemma mon_sup I (g: I -> X) (f: [X ⇒ Y]) P:
+   sup' P (fun x => f (g x)) <= f (sup' P g).
+ Proof. apply sup_spec. intros. apply f. now apply leq_xsup'. Qed.
+ Lemma mon_cup (f: [X ⇒ Y]) x y: cup (f x) (f y) <= f (cup x y).
+ Proof. apply cup_spec; split; apply f; auto. Qed.
+ Lemma mon_inf I (g: I -> X) (f: [X ⇒ Y]) P:
+   f (inf' P g) <= inf' P (fun x => f (g x)).
+ Proof. apply inf_spec. intros. apply f. now apply leq_infx'. Qed.
+ Lemma mon_cap (f: [X ⇒ Y]) x y: f (cap x y) <= cap (f x) (f y).
+ Proof. apply cap_spec; split; apply f; auto. Qed.
+End mon_apply.
+
+
+Section mon_comp.
+ Context {X Y Z W: Type}.
+ Context {LX: CompleteLattice X} {LY: CompleteLattice Y}.
+ Context {LZ: CompleteLattice Z} {LW: CompleteLattice W}.
+
+ Global Instance comp_leq: Proper (leq ==> leq ==> leq) (@comp X Y Z _ _ _).
  Proof. intros f f' Hf g g' Hg x. simpl. rewrite (Hg x). apply Hf. Qed.
- Global Instance comp_weq: Proper (weq ==> weq ==> weq) comp := op_leq_weq_2.
+ Global Instance comp_weq: Proper (weq ==> weq ==> weq) (@comp X Y Z _ _ _) :=
+   op_leq_weq_2.
 
  (** trivial properties of composition *)
- Lemma compA f g h: f ° (g ° h) = (f ° g) ° h.
+ Lemma compA (f: [Z ⇒ W]) (g: [Y ⇒ Z]) (h: [X ⇒ Y]): f ° (g ° h) = (f ° g) ° h.
  Proof. reflexivity. Qed.
- Lemma compIx f: id ° f = f.
- Proof. now case f. Qed. 
- Lemma compxI f: f ° id = f.
- Proof. now case f. Qed. 
+ Lemma compIx (f: [X ⇒ Y]): id ° f = f.
+ Proof. now case f. Qed.
+ Lemma compxI (f: [X ⇒ Y]): f ° id = f.
+ Proof. now case f. Qed.
 
- (** monotone functions applied to infs/sups *)
- Lemma mon_sup I (g: I -> X) (f: mon) P: sup' P (fun x => f (g x)) <= f (sup' P g).
- Proof. apply sup_spec. intros. apply f. now apply leq_xsup'. Qed.
- Lemma mon_cup (f: mon) x y: cup (f x) (f y) <= f (cup x y).
- Proof. apply cup_spec; split; apply f; auto. Qed.
- Lemma mon_inf I (g: I -> X) (f: mon) P: f (inf' P g) <= inf' P (fun x => f (g x)).
- Proof. apply inf_spec. intros. apply f. now apply leq_infx'. Qed.
- Lemma mon_cap (f: mon) x y: f (cap x y) <= cap (f x) (f y).
- Proof. apply cap_spec; split; apply f; auto. Qed.
-
- (** operations on [mon X] behave as expected on the left of compositions *)
- Lemma msup_o I f P h: sup' P f ° h == sup' P (fun i: I => (f i) ° h).
+ (** operations on monotone functions behave as expected on the left of
+     compositions *)
+ Lemma msup_o I (f: I -> [Y ⇒ Z]) P (h: [X ⇒ Y]):
+   sup' P f ° h == sup' P (fun i => f i ° h).
  Proof. now intro. Qed.
- Lemma mcup_o f g h: (cup f g) ° h == cup (f ° h) (g ° h).
+ Lemma mcup_o (f g: [Y ⇒ Z]) (h: [X ⇒ Y]): (cup f g) ° h == cup (f ° h) (g ° h).
  Proof. now intro. Qed.
- Lemma mbot_o f: bot ° f == bot.
+ Lemma mbot_o (f: [X ⇒ Y]): (bot: [Y ⇒ Z]) ° f == bot.
  Proof. now intro. Qed.
- Lemma minf_o I f P h: inf' P f ° h == inf' P (fun i: I => (f i) ° h).
+ Lemma minf_o I (f: I -> [Y ⇒ Z]) P (h: [X ⇒ Y]):
+   inf' P f ° h == inf' P (fun i => f i ° h).
  Proof. now intro. Qed.
- Lemma mcap_o f g h: (cap f g) ° h == cap (f ° h) (g ° h).
- Proof. now intro. Qed. 
- Lemma mtop_o f: top ° f == top.
+ Lemma mcap_o (f g: [Y ⇒ Z]) (h: [X ⇒ Y]): (cap f g) ° h == cap (f ° h) (g ° h).
+ Proof. now intro. Qed.
+ Lemma mtop_o (f: [X ⇒ Y]): (top: [Y ⇒ Z]) ° f == top.
  Proof. now intro. Qed.
 
  (** instead, only one inclusion holds in general when they are on the left *)
- Lemma o_msup I f P h: sup' P (fun i: I => h ° (f i)) <= h ° sup' P f.
+ Lemma o_msup I (f: I -> [X ⇒ Y]) P (h: [Y ⇒ Z]):
+   sup' P (fun i => h ° f i) <= h ° sup' P f.
  Proof. intro. apply sup_spec. intros. apply h. eapply eleq_xsup; eauto. Qed.
- Lemma o_mcup h f g: cup (h ° f) (h ° g) <= h ° (cup f g).
+ Lemma o_mcup (h: [Y ⇒ Z]) (f g: [X ⇒ Y]): cup (h ° f) (h ° g) <= h ° (cup f g).
  Proof. intro. apply (mon_cup h). Qed.
- Lemma o_minf I f P h: h ° inf' P f <= inf' P (fun i: I => h ° (f i)).
+ Lemma o_minf I (f: I -> [X ⇒ Y]) P (h: [Y ⇒ Z]):
+   h ° inf' P f <= inf' P (fun i => h ° f i).
  Proof. intro. apply inf_spec. intros. apply h. eapply eleq_infx; eauto. Qed.
- Lemma o_mcap h f g: h ° (cap f g) <= cap (h ° f) (h ° g).
+ Lemma o_mcap (h: [Y ⇒ Z]) (f g: [X ⇒ Y]): h ° (cap f g) <= cap (h ° f) (h ° g).
  Proof. intro. apply (mon_cap h). Qed.
 
-End mon.
-Arguments mon X {L}.
-Infix "°" := comp (at level 20): lattice.
+End mon_comp.
 Global Opaque cup bot cap top.  (* TODO: check that we still need this *)
 
-(** application as a function [X->X]->X->X is monotone in its two arguments *)
-#[export] Instance app_leq {X} {L: CompleteLattice X}:
- Proper (leq ==> leq ==> leq) (body (X := X)).
+(** application as a function [ [X ⇒ Y] -> X -> Y ] is monotone in its two
+    arguments *)
+#[export] Instance app_leq {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
+ Proper (leq ==> leq ==> leq) (@body X Y _ _).
 Proof. intros f g fg x y xy. transitivity (f y). now apply f. now apply fg. Qed.
-#[export] Instance app_weq {X} {L: CompleteLattice X}:
- Proper (weq ==> weq ==> weq) (body (X := X)) := op_leq_weq_2.
+#[export] Instance app_weq {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
+ Proper (weq ==> weq ==> weq) (@body X Y _ _) := op_leq_weq_2.
 
-(** If X and Y are members of a complete lattice, so is (X, Y)  *)
+(** If X and Y are members of a complete lattice, so is (X, Y) *)
 Section product. 
 Context {X Y : Type}.
 Context {CLX : CompleteLattice X} {CLY : CompleteLattice Y}.
@@ -471,44 +498,42 @@ Context {CLX : CompleteLattice X} {CLY : CompleteLattice Y}.
   + rewrite 2cap_spec. firstorder.
 Qed.  
 
-Lemma fst_monotone (p q : X * Y) : Proper (@leq (X * Y) _ ==> @leq X _) fst. 
+Lemma fst_monotone : Proper (@leq (X * Y) _ ==> @leq X _) fst. 
 Proof. firstorder. Qed.
 
-Lemma snd_monotone (p q : X * Y) : Proper (@leq (X * Y) _ ==> @leq Y _) snd. 
+Lemma snd_monotone : Proper (@leq (X * Y) _ ==> @leq Y _) snd. 
 Proof. firstorder. Qed.
 
-Definition mf_fst := Build_mon (fst_monotone _ _).
-  {| body    := fst
+Definition fst_mon : [X * Y ⇒ X] :=
+  {| body  := fst
   ;  Hbody := fst_monotone
   |}.
-Definition mf_snd : [X * Y ⇒ Y] :=
-  {| mf_apply    := snd
-  ;  mf_monotone := mf_snd_monotone
+Definition snd_mon : [X * Y ⇒ Y] :=
+  {| body  := snd
+  ;  Hbody := snd_monotone
   |}.
 
-End Product.
+End product.
 
 Add Parametric Morphism (X Y : Type)
-  (LCX : LatticeCore X) (LCY : LatticeCore Y) : (@fst X Y) with
-  signature lattice_le ++> lattice_le
+  (LX : CompleteLattice X) (LY : CompleteLattice Y) : (@fst X Y) with
+  signature leq ++> leq
   as fst_mor.
 Proof. firstorder. Qed.
 
 Add Parametric Morphism (X Y : Type)
-  (LCX : LatticeCore X) (LCY : LatticeCore Y) : (@snd X Y) with
-  signature lattice_le ++> lattice_le
+  (LX : CompleteLattice X) (LY : CompleteLattice Y) : (@snd X Y) with
+  signature leq ++> leq
   as snd_mor.
 Proof. firstorder. Qed.
 
-
-
-End product. 
+(* todo: remove these if not needed  *)
 
 (** * Involutions *)
 
 Section involutions.
   
- Context {X} {L: CompleteLattice X} {i: mon X}.
+ Context {X} {L: CompleteLattice X} {i: [X ⇒ X]}.
   
  Class Involution := invol: i ° i == id.
  
@@ -520,7 +545,7 @@ Section involutions.
  Lemma switch x y: i x <= y <-> x <= i y.
  Proof. split; (intro H; apply i in H; now rewrite invol' in H). Qed.
 
- Lemma Switch f g: i ° f <= g <-> f <= i ° g.
+ Lemma Switch (f g: [X ⇒ X]): i ° f <= g <-> f <= i ° g.
  Proof. split; (intros H x; apply switch, H). Qed.
  
  Lemma invol_fixed x: i x <= x <-> i x == x.

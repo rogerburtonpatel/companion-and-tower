@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(coqc --version)",
+      "Bash(coqc -R theories/ Coinduction theories/lattice.v)",
+      "Bash(coqc -R theories/ Coinduction /tmp/lat_test.v)",
+      "Bash(coqc /tmp/dbg.v)",
+      "Bash(grep -v \"ajeetdsouza\\\\|_ZO_DOCTOR\\\\|Disable this\\\\|persists\\\\|ensure that\\\\|^$\\\\|initialized\\\\|file an issue\\\\|github.com\")",
+      "Bash(grep -v \"zoxide\\\\|ajeetdsouza\\\\|_ZO_DOCTOR\\\\|Disable this\\\\|persists\\\\|ensure that\\\\|initialized\\\\|filing an issue\\\\|github.com\\\\|^$\")",
+      "Bash(make)",
+      "Bash(coqc -R theories/ Coinduction theories/tower.v)",
+      "Bash(coqc -R theories/ Coinduction theories/companion.v)",
+      "Bash(make clean *)",
+      "Bash(echo \"make exit code: $?\")"
+    ]
+  }
+}

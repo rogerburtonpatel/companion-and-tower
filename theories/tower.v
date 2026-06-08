@@ -25,7 +25,7 @@ Section s.
    intros x Hx. apply HT. trivial.
    revert H. apply HP. now apply leq_infx.
  Qed.
- Lemma inf_closed_leq (f: mon X): inf_closed (fun x => f x <= x).
+ Lemma inf_closed_leq (f: endo X): inf_closed (fun x => f x <= x).
  Proof.
    intros T HT. apply inf_spec. intros x Tx.
    transitivity (f x). now apply f, leq_infx.
@@ -33,7 +33,7 @@ Section s.
  Qed.
    
 
- Variable b: mon X.
+ Variable b: endo X.
 
  (** * Final chain as an inductive predicate *)
 
@@ -126,7 +126,7 @@ Proof. intros f g fg. apply leq_gfp. rewrite <-fg. apply gfp_pfp. Qed.
 #[export] Instance gfp_weq {X L}: Proper (weq ==> weq) (@gfp X L) := op_leq_weq_1.
 
 (** if [f<=g] then the final chain of [f] is covered by the final chain of [g] *)
-Lemma C_leq {X} {L: CompleteLattice X} (f g: mon X) (fg: f <= g): forall x, C f x -> exists y, C g y /\ x <= y.
+Lemma C_leq {X} {L: CompleteLattice X} (f g: endo X) (fg: f <= g): forall x, C f x -> exists y, C g y /\ x <= y.
 Proof.
   induction 1 as [x Cfx [y [Cgy xy]]| F FC _ ].
   - exists (g y); split. now apply Cb. now rewrite xy; apply fg.
@@ -136,7 +136,7 @@ Proof.
     rewrite <-xy. now apply leq_infx.
 Qed.
 (** if [f==g] then the final chain of [f] is equivalent to that of [g] *)
-Lemma C_weq {X} {L: CompleteLattice X} (f g: mon X) (fg: f == g): forall x, C f x -> exists y, C g y /\ x == y.
+Lemma C_weq {X} {L: CompleteLattice X} (f g: endo X) (fg: f == g): forall x, C f x -> exists y, C g y /\ x == y.
 Proof.
   induction 1 as [x Cfx [y [Cgy xy]]| F FC IH ].
   - exists (g y); split. now apply Cb. now rewrite xy; apply fg.
@@ -156,7 +156,7 @@ Qed.
 Section symmetry.
   
  (** when the function [b] is derived from a function [s] and an involution, we get symmetry arguments *)
- Context {X} {L: CompleteLattice X} {i b s: mon X} {I: Involution i}.
+ Context {X} {L: CompleteLattice X} {i b s: endo X} {I: Involution i}.
   
  Class Symmetrical := symmetrical: b == cap s (i ° s ° i).
  Context {H: Symmetrical}.
@@ -192,5 +192,5 @@ End symmetry.
 Arguments Symmetrical {_ _}.
 
 (** obvious instance of [Sym_from] (default) *)
-#[export] Instance symmetrical_from_def {X} {L: CompleteLattice X} {i s: mon X}: Symmetrical i (cap s (i ° s ° i)) s.
+#[export] Instance symmetrical_from_def {X} {L: CompleteLattice X} {i s: endo X}: Symmetrical i (cap s (i ° s ° i)) s.
 Proof. now cbn. Qed.

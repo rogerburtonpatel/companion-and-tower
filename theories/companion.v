@@ -16,8 +16,10 @@ Set Implicit Arguments.
 
 Section s1.
  Context {X} {L: CompleteLattice X}.
- 
- Variable b: mon X.
+ Implicit Types f g h: endo X.
+ Implicit Types x y z: X.
+
+ Variable b: endo X.
 
  (** ** compatible functions *)
  Notation compat f := (f ° b <= b ° f) (only parsing).
@@ -40,7 +42,7 @@ Section s1.
  Lemma compat_const y: y <= b y -> compat (const y).
  Proof. now intros ??. Qed. 
  
- Lemma compat_sup (P: mon X -> Prop):
+ Lemma compat_sup (P: endo X -> Prop):
    (forall f, P f -> compat f) -> compat (sup P).
  Proof.
    intros H x. simpl. apply sup_spec. intros f Pf. 
@@ -135,12 +137,12 @@ Global Opaque t.
 Section s2.
  Context {X} {L: CompleteLattice X}.
 
- (** [gfp] is monotone, as a function from [mon X] to [X] *)
+ (** [gfp] is monotone, as a function from [endo X] to [X] *)
  Instance gfp_leq: Proper (leq ==> leq) (gfp (X := X)).
  Proof. intros b b' Hb. apply leq_gfp. rewrite gfp_fp at 1. apply Hb. Qed.
  Instance gfp_weq: Proper (weq ==> weq) (gfp (X := X)) := op_leq_weq_1.
- (** [t] respects equality as a function from [mon X] to [mon X] 
-     (be careful: [t] is not monotone from [mon X] to [mon X]) *)
+ (** [t] respects equality as a function from [endo X] to [endo X] 
+     (be careful: [t] is not monotone from [endo X] to [endo X]) *)
  Instance t_weq: Proper (weq ==> weq) (t (X:=X)).
  Proof.
    assert (E: Proper (weq ==> leq) (t (X:=X))). 
@@ -148,7 +150,7 @@ Section s2.
    intros f g fg. apply antisym; apply E. apply fg. symmetry. apply fg.
  Qed.
  
- Variable b: mon X.
+ Variable b: endo X.
 
  (** [t] is intended to be used as an up-to technique, to play with 
      [b' = b ° t] rather than just [b].
@@ -182,10 +184,10 @@ End s2.
 
 Section s3.
  Context {X} {L: CompleteLattice X}.
- Variable b: mon X.
+ Variable b: endo X.
  
  (** a function whose post-fixpoints are the compatible functions (Definition 6.1) *)
- Program Definition B: mon (mon X) :=
+ Program Definition B: endo (endo X) :=
    {| body g := sup (fun f => f ° b <= b ° g) |}.
  Next Obligation.
    intros g g' Hg x. apply sup_leq; trivial. 
@@ -224,7 +226,7 @@ Section s3.
  (** ** properties of the second order companion (Proposition 6.4) *)
  
  (** the squaring function is compatible for [B] (Lemma 6.3) *)
- Program Definition csquare: mon (mon X) := {| body f := f ° f |}.
+ Program Definition csquare: endo (endo X) := {| body f := f ° f |}.
  Next Obligation. intros ? ? ?. now apply comp_leq. Qed.
  Lemma compat_csquare: compat B csquare. 
  Proof.
@@ -309,7 +311,7 @@ Section s3.
 
  (** * Parametric coinduction: the accumulation rule  *)
  
- Program Definition xaccumulate y x: mon X :=
+ Program Definition xaccumulate y x: endo X :=
    {| body z := sup' (fun _:unit => x <= z) (fun _:unit => y) |}.
  Next Obligation.
    intros z z' Hz. apply sup_leq; trivial.
@@ -338,7 +340,9 @@ Global Opaque B.
 Section symmetry.
  (** we use a class to record the involution: this makes it possible to
      find the appropriate involution automativally in concrete examples  *)
- Context {X} {L: CompleteLattice X} {i: mon X}.
+ Context {X} {L: CompleteLattice X} {i: endo X}.
+ Implicit Types f g h: endo X.
+ Implicit Types x y z: X.
  Class Involution := invol: i ° i == id.
  Context {I: Involution}.
  
@@ -358,7 +362,7 @@ Section symmetry.
      we use a class to record such a fact, so that the end-user may use syntactically different definitions and yet be able to declare a function as being of this shape.
   *)
 
- Context {b s: mon X}.
+ Context {b s: endo X}.
  Class Sym_from := sym_from: b == (cap s (i ° s ° i)).
  Context {H: Sym_from}.
  Notation B := (B b).
@@ -416,7 +420,7 @@ Arguments Involution {_ _} _.
 Arguments Sym_from {_ _} _ _ _.
 
 (** obvious instance of [Sym_from] (default) *)
-#[export] Instance sym_from_def {X} {L: CompleteLattice X} {i s: mon X}: Sym_from i (cap s (i ° s ° i)) s.
+#[export] Instance sym_from_def {X} {L: CompleteLattice X} {i s: endo X}: Sym_from i (cap s (i ° s ° i)) s.
 Proof. now cbn. Qed.
 
 
@@ -425,7 +429,7 @@ Proof. now cbn. Qed.
 Section proof_system.
  Context {X} {L: CompleteLattice X}.
  
- Variable b: mon X.
+ Variable b: endo X.
  Notation B := (B b).
  Notation T := (T b).
  Notation t := (t b).
@@ -452,7 +456,7 @@ Module respectful.
 Section s.
  Context {X} {L: CompleteLattice X}.
 
- Variable b: mon X. 
+ Variable b: endo X. 
  Notation b' := (cap b id).
  Notation t' := (t b').
  Notation B' := (B b').
@@ -538,16 +542,16 @@ Section s.
 
  Context {X} {L: CompleteLattice X}. 
 
- Program Definition g (b: mon X) x: mon X := {| body y := b (cup x y) |}.
+ Program Definition g (b: endo X) x: endo X := {| body y := b (cup x y) |}.
  Next Obligation. intros y z H. now rewrite H. Qed.
 
- Program Definition G b: mon X := {| body x := gfp (g b x) |}.
+ Program Definition G b: endo X := {| body x := gfp (g b x) |}.
  Next Obligation.
    intros ? ? ?. apply gfp_leq.
    intro. simpl. now rewrite H.
  Qed.
 
- Variable b: mon X.
+ Variable b: endo X.
  Notation t := (t b).
  Notation bt := (bt b).
  Notation G' := (G bt).
@@ -580,7 +584,7 @@ Module chain.
 Import tower.
 Section s.
  Context {X} {L: CompleteLattice X}. 
- Variable b: mon X.
+ Variable b: endo X.
  Notation t := (t b). 
  Notation C := (C b).
  Notation Chain := (Chain b).
@@ -624,8 +628,8 @@ try econstructor;
 try apply_leq; 
 eauto] || fail "`monauto` could not solve this goal."). 
 
-  (* t: mon X *)
-  (* want to look at mon (X -> Prop) *)
+  (* t: endo X *)
+  (* want to look at endo (X -> Prop) *)
  Definition foo x (C : X -> Prop) y := C y /\ x <= y.
  Check (foo _). 
  Goal forall x, Proper (leq ==> leq) (foo x).
@@ -637,17 +641,17 @@ eauto] || fail "`monauto` could not solve this goal.").
   Check gfp.
   
   
-  (* next: prove that (mon X) -> Prop is a complete lattice *)
+  (* next: prove that (endo X) -> Prop is a complete lattice *)
 
-  (* (mon X) -> Prop  : sets of mon X *) 
-  (* take the inf of that gives us a mon X *)
-  (* we want the inf of ? to be the mon X such that it is the companion t *)
-  (* goal: find the set TS : ((mon X) -> Prop) such that inf TS : mon X = t. *)
+  (* (endo X) -> Prop  : sets of endo X *) 
+  (* take the inf of that gives us a endo X *)
+  (* we want the inf of ? to be the endo X such that it is the companion t *)
+  (* goal: find the set TS : ((endo X) -> Prop) such that inf TS : endo X = t. *)
 
   Check (inf (fun C => foo _ C _)).  
- (* (foo x) in (mon (X -> Prop)) *)
+ (* (foo x) in (endo (X -> Prop)) *)
 
-  (* #[global] Instance CompleteLattice_monsets : CompleteLattice ((mon X) -> Prop) := 
+  (* #[global] Instance CompleteLattice_monsets : CompleteLattice ((endo X) -> Prop) := 
   {|
     leq := fun _ _ => 
     top := fun _ => True ;
@@ -660,7 +664,7 @@ eauto] || fail "`monauto` could not solve this goal.").
    intros x y H. apply inf_spec; intros s [Cs E]. apply leq_infx.
    split. assumption. now rewrite H. 
  Qed.
- Definition t' := Build_mon t'_mon. 
+ Definition t' : endo X := {| body := t'_; Hbody := t'_mon |}.
  Lemma id_t' x: x <= t' x.
  Proof. apply inf_spec. now intros s [_ ?]. Qed.
  Lemma Ct' x: C (t' x).
