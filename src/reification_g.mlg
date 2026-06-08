@@ -1,0 +1,20 @@
+(** an OCaml plugin to perform reification and apply the lemmas implementing enhanced coinduction.
+    see end-user tactics in [tactics.v]
+ *)
+  
+
+DECLARE PLUGIN "rocq-coinduction.plugin"
+
+{
+
+open Ltac_plugin
+open Stdarg
+open Proofview
+open Reification
+
+}
+
+TACTIC EXTEND coinduction_reify
+| [ "apply_by_symmetry" ident(r) ] -> { Goal.enter (apply r `By_symmetry) }
+| [ "apply_ptower" ident(r) constr(n) ] -> { Goal.enter (apply r (`PTower(n))) }
+END
