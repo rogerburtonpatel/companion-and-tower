@@ -10,7 +10,7 @@ Set Implicit Arguments.
 Class CompleteLattice (X: Type) := {
   weq: relation X;
   leq: relation X;
-  (* sup: (I -> Prop) -> X; *)
+  (* sup: (X -> Prop) -> X; *)
   (* inf: (X -> Prop) -> X; *)
   sup': forall I, (I -> Prop) -> (I -> X) -> X;
   inf': forall I, (I -> Prop) -> (I -> X) -> X;
@@ -39,6 +39,12 @@ Infix "==" := weq (at level 70): lattice.
 Infix "<=" := leq: lattice.
 Notation sup P := (sup' P id).
 Notation inf P := (inf' P id).
+
+Notation "∐ R , P" := (sup (fun R => P)) 
+  (at level 200, right associativity).
+Notation "∏ R , P" := (inf (fun R => P))
+  (at level 200, right associativity).
+
 
 Section s.
  Context {X} {L: CompleteLattice X}.
@@ -104,14 +110,6 @@ Next Obligation.
   setoid_rewrite cup_spec. now firstorder. 
   setoid_rewrite cap_spec. now firstorder. 
 Qed.
-(*
-Definition a1: CompleteLattice (nat -> Prop) := _. 
-Definition a2: CompleteLattice (nat -> nat -> Prop) := _. 
-Definition a3: CompleteLattice (forall n: nat, n = n -> Prop) := _.
-*)
-(* (** Functions into a complete lattice *) *)
-(* #[export] Instance CompleteLattice_fun {A X} {L: CompleteLattice X}: CompleteLattice (A -> X) := *)
-(*   CompleteLattice_dfun (fun _ => X) (fun _ => L).  *)
 
 (** Dual lattice *)
 Program Definition Dual {X} {L: CompleteLattice X}: CompleteLattice X :=
@@ -321,6 +319,7 @@ Global Hint Resolve cap_l cap_r: core.
 
 (** * The complete lattice of monotone endofunctions *)
 
+(*  *)
 Section mon. 
  Context {X} {L: CompleteLattice X}.
  
@@ -442,6 +441,68 @@ Proof. intros f g fg x y xy. transitivity (f y). now apply f. now apply fg. Qed.
 #[export] Instance app_weq {X} {L: CompleteLattice X}:
  Proper (weq ==> weq ==> weq) (body (X := X)) := op_leq_weq_2.
 
+(** If X and Y are members of a complete lattice, so is (X, Y)  *)
+Section product. 
+Context {X Y : Type}.
+Context {CLX : CompleteLattice X} {CLY : CompleteLattice Y}.
+
+#[export] Program Instance CompleteLattice_Product : CompleteLattice (X * Y) :=
+  { 
+   weq  := fun p q => fst p == fst q /\ snd p == snd q ;
+   leq  := fun p q => fst p <= fst q /\ snd p <= snd q ;
+   sup' I (P : I -> Prop) (f : I -> (X * Y)) := 
+   ((sup' P (fun i => fst (f i))), (sup' P (fun i => snd (f i)))) ; 
+   inf' I (P : I -> Prop) (f : I -> (X * Y)) := 
+   ((inf' P (fun i => fst (f i))), (inf' P (fun i => snd (f i)))) ;
+   cup p1 p2 := (cup (fst p1) (fst p2), cup (snd p1) (snd p2)) ;
+   cap p1 p2 := (cap (fst p1) (fst p2), cap (snd p1) (snd p2)) ;
+   bot := (bot, bot) ;
+   top := (top, top) ;
+  }.
+  Next Obligation. 
+  CL_split. 
+  + repeat constructor; firstorder; solve [etransitivity; eauto].
+  + split; intro; destruct H as [H H0]. 
+    * now rewrite H, H0.
+    * split; rewrite weq_spec; firstorder. 
+  + rewrite 2sup_spec. firstorder.
+  + rewrite 2inf_spec. firstorder.
+  + rewrite 2cup_spec. firstorder.
+  + rewrite 2cap_spec. firstorder.
+Qed.  
+
+Lemma fst_monotone (p q : X * Y) : Proper (@leq (X * Y) _ ==> @leq X _) fst. 
+Proof. firstorder. Qed.
+
+Lemma snd_monotone (p q : X * Y) : Proper (@leq (X * Y) _ ==> @leq Y _) snd. 
+Proof. firstorder. Qed.
+
+Definition mf_fst := Build_mon (fst_monotone _ _).
+  {| body    := fst
+  ;  Hbody := fst_monotone
+  |}.
+Definition mf_snd : [X * Y ⇒ Y] :=
+  {| mf_apply    := snd
+  ;  mf_monotone := mf_snd_monotone
+  |}.
+
+End Product.
+
+Add Parametric Morphism (X Y : Type)
+  (LCX : LatticeCore X) (LCY : LatticeCore Y) : (@fst X Y) with
+  signature lattice_le ++> lattice_le
+  as fst_mor.
+Proof. firstorder. Qed.
+
+Add Parametric Morphism (X Y : Type)
+  (LCX : LatticeCore X) (LCY : LatticeCore Y) : (@snd X Y) with
+  signature lattice_le ++> lattice_le
+  as snd_mor.
+Proof. firstorder. Qed.
+
+
+
+End product. 
 
 (** * Involutions *)
 
