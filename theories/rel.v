@@ -12,7 +12,7 @@ Set Implicit Arguments.
 
 
 (** converse function (an involution) *)
-Program Definition converse {A}: endo (A -> A -> Prop) :=
+Program Definition converse {A}: mon (A -> A -> Prop) :=
   {| body R x y := R y x |}.
 Next Obligation. cbv. firstorder. Qed. 
 
@@ -31,7 +31,7 @@ Lemma converse_cap S (R R': relation S):
 Proof. apply invol_cap. Qed.
 
 (** squaring function *)
-Program Definition square {A}: endo (A -> A -> Prop) :=
+Program Definition square {A}: mon (A -> A -> Prop) :=
   {| body R x y := exists2 z, R x z & R z y |}.
 Next Obligation. cbv. firstorder. Qed. 
 
@@ -64,7 +64,7 @@ Section s.
   Lemma inf_closed_equivalence: inf_closed (@Equivalence A).
   Proof. cbv; firstorder eauto. Qed.
 
-  Context {b: endo (relation A)}.
+  Context {b: mon (relation A)}.
 
   (** for chain elements [R], [gfp b] and [b R] are always subrelations of [R] *)
   #[export] Instance sub_bChain (R: Chain b): subrelation (b `R) `R.

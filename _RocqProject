@@ -1,20 +1,20 @@
-	# -arg -w -arg -undo-batch-mode
+	-arg -w -arg -undo-batch-mode
 
 -R theories/ Coinduction
-# -I src/
+-I src/
 
-# -generate-meta-for-package rocq-coinduction
+-generate-meta-for-package rocq-coinduction
 
 theories/lattice.v
 theories/tower.v
 theories/companion.v
 theories/rel.v
-# theories/tactics.v
-# theories/tests.v
-# theories/all.v
+theories/tactics.v
+theories/tests.v
+theories/all.v
 
-# src/reification.ml
-# src/reification.mli
-# src/reification_g.mlg
-# src/reification_g.mli
-# src/plugin.mlpack
+src/reification.ml
+src/reification.mli
+src/reification_g.mlg
+src/reification_g.mli
+src/plugin.mlpack

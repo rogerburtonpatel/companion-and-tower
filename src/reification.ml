@@ -44,7 +44,7 @@ end
 (* Coinduction constants *)
 module Cnd = struct
   let body_       = get_const "coinduction.body"
-  let body        = get_fun_4 "coinduction.body"            
+  let body s l b rel = force_app body_ [|s;s;l;l;b;rel|]
   let elem_       = get_const "coinduction.elem"
   let elem        = get_fun_4 "coinduction.elem"
   let chain       = get_const "coinduction.Chain"
@@ -168,7 +168,7 @@ let apply rname mode goal =
     (* body s l b r x y *)      
     | App(c,slbrxy) when mode =`By_symmetry && c=Lazy.force Cnd.body_ ->
        (match slbrxy with
-          [|_;_;b';r';x;y|] ->
+          [|_;_;_;_;b';r';x;y|] ->
            if not (convertible r' rel &&convertible b' b) then
              error "only one candidate is allowed";
            (Lazy.force Cnd.hol,tuple [x;y],

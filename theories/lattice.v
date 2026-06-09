@@ -321,18 +321,18 @@ Global Hint Resolve cap_l cap_r: core.
 (** * The complete lattice of monotone functions *)
 
 (** monotone functions between two complete lattices *)
-Record mon (X Y: Type) {LX: CompleteLattice X} {LY: CompleteLattice Y} :=
+Record mon_h (X Y: Type) {LX: CompleteLattice X} {LY: CompleteLattice Y} :=
   { body:> X -> Y;
     Hbody: Proper (leq ==> leq) body }.
-Arguments mon X Y {LX LY}.
+Arguments mon_h X Y {LX LY}.
 Arguments body {X Y LX LY}.
 Arguments Hbody {X Y LX LY}.
 
-Notation "[ X ⇒ Y ]" := (mon X Y)
+Notation "[ X ⇒ Y ]" := (mon_h X Y)
   (at level 0, X at level 200, Y at level 200): lattice.
 
 (** monotone endofunctions are the common special case *)
-Notation endo X := (mon X X).
+Notation mon X := (mon_h X X).
 
 Existing Instance Hbody.
 Instance Hbody' {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}
