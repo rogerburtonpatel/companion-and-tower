@@ -1,11 +1,12 @@
 Require Import Utf8.
-Require Import Lattice MonotoneFunction LatticeProduct.
-Require Import Progress.
+Require Import lattice.
+Require Import progress.
+Open Scope lattice. 
 
 Notation L_lift L := ([L ⇒ L] * [L ⇒ L])%type.
 
-Definition p_comp {L : Type} {LC : LatticeCore L} (f g : L_lift L) :=
-  (fst f ∘ fst g, snd f ∘ snd g).
+Definition p_comp {X : Type} {CL : CompleteLattice X} (f g : L_lift X) :=
+  (fst f ° fst g, snd f ° snd g).
 
 Notation "f • g" := (p_comp f g) (at level 50).
 
