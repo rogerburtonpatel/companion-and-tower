@@ -35,6 +35,19 @@ intros R Rsim; eapply progress_monotone_r; [ | eassumption ].
 apply leq_xsup; assumption.
 Qed.
 
+(** indexed form of the left-limit law: progress is preserved under arbitrary
+    indexed suprema.  This is the form actually needed once progress is lifted
+    to the lattices of monotone functions and of products, where suprema are
+    computed pointwise/componentwise rather than as [sup' _ id]. *)
+Lemma progress_limit_l' {I} (P : I → Prop) (h : I → X) S :
+  (∀ i, P i → h i ↣ S) → sup' P h ↣ S.
+Proof.
+intro H.
+apply progress_monotone_l with (Q := sup (fun x => ∃ i, P i ∧ h i = x)).
++ apply sup_spec; intros i Pi. apply leq_xsup. exists i. split; [ exact Pi | reflexivity ].
++ apply progress_limit_l; intros x [ i [ Pi <- ] ]. now apply H.
+Qed.
+
 End Progress.
 
 Arguments progress_monotone_l {X CL progress _}.

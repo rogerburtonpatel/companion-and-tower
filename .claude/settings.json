@@ -11,7 +11,18 @@
       "Bash(coqc -R theories/ Coinduction theories/tower.v)",
       "Bash(coqc -R theories/ Coinduction theories/companion.v)",
       "Bash(make clean *)",
-      "Bash(echo \"make exit code: $?\")"
+      "Bash(echo \"make exit code: $?\")",
+      "Bash(claude mcp *)",
+      "Bash(_ZO_DOCTOR=0 make)",
+      "Bash(_ZO_DOCTOR=0 git diff HEAD -- theories/Evolution.v theories/evolution.v)",
+      "Bash(_ZO_DOCTOR=0 make theories/progress.vo)",
+      "Bash(grep -vE \"zoxide|Please ensure|If the issue|https://github|Disable this|deprecated|Warning: Loading|Use \\\\\"From|for compatibility|^\\\\s*$\")",
+      "Bash(_ZO_DOCTOR=0 make theories/evolution.vo)",
+      "Bash(grep -vE \"zoxide|Please ensure|If the issue|https://github|Disable this|deprecated-|Warning: Loading|Use \\\\\"From|for compatibility|^\\\\s*$\")",
+      "Bash(_ZO_DOCTOR=0 coqc -R theories Coinduction -I src /tmp/test_eq.v)",
+      "Bash(echo \"EXIT $?\")",
+      "Bash(echo \"MAKE EXIT: $?\")",
+      "Bash(_ZO_DOCTOR=0 git diff --stat)"
     ]
   }
 }
