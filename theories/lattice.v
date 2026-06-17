@@ -45,6 +45,11 @@ Notation "∐ P" := (sup P)
 Notation "∏ P" := (inf P)
   (at level 200, right associativity).
 
+Notation "∐ '{' x '|' P '}'" := (sup (fun x => P)) 
+  (at level 200, right associativity).
+Notation "∏ '{' x '|' P '}'" := (inf (fun x => P))
+  (at level 200, right associativity).
+
 Section LatticeElems.
 
 Context {X : Type} {CL : CompleteLattice X}.

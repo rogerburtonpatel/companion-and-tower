@@ -26,7 +26,7 @@ eapply progress_monotone_r; [ eassumption | ].
 assumption.
 Qed.
 
-Definition similarity := ∐ (fun R => R ↣ R).
+Definition similarity := ∐ {R | R ↣ R}.
 
 Lemma sim_similarity : similarity ↣ similarity.
 Proof.
@@ -64,7 +64,7 @@ Context {PP : Progress p} {PB : Progress b}.
 Notation "R '↣ₚ' S" := (p R S) (at level 70).
 Notation "R '↣ₐ' S" := (b R S) (at level 70).
 
-Definition di_similarity := ∐ (fun R => R ↣ₚ R ∧ R ↣ₐ R).
+Definition di_similarity := ∐ {R | R ↣ₚ R ∧ R ↣ₐ R}.
 
 Lemma di_similarity_p_sim : di_similarity ↣ₚ di_similarity.
 Proof.
