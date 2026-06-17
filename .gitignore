@@ -15,3 +15,4 @@ RocqMakefile
 RocqMakefile.conf
 src/reification_g.ml
 src/META.rocq-coinduction
+.DS_Store
