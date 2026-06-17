@@ -1,6 +1,6 @@
 From Stdlib Require Import Utf8.
 Require Import lattice. 
-Require Import progress evolution companion.
+Require Import progress evolution diacritical_companion.
 
 Section HigherOrder.
 Context {X : Type} {CLX : CompleteLattice X}.

@@ -7,7 +7,7 @@ open EConstr
 open Proofview
 
 (* raise an error in Rocq *)
-let error s = Printf.kprintf (fun s -> CErrors.user_err (Pp.str s)) ("[coinduction] "^^s)
+let error s = Printf.ksprintf (fun s -> CErrors.user_err (Pp.str s)) ("[coinduction] "^^s)
 
 (* access to Rocq constants *)
 let get_const s = 
