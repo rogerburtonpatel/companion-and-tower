@@ -1,4 +1,4 @@
-Require Import Utf8.
+From Stdlib Require Import Utf8.
 Require Import lattice.
 Require Import progress evolution.
 
@@ -14,7 +14,7 @@ Notation "f ↝ₚ g" := (p_evolution p f g) (at level 70).
 Notation "f ↝ₐ g" := (a_evolution p b f g) (at level 70).
 
 Definition compatible f := f ↝ₚ f ∧ f ↝ₐ f.
-Definition compan := ∐ f, compatible f.
+Definition compan := ∐ (fun f => compatible f).
 
 Notation u := (fst compan).
 Notation w := (snd compan).

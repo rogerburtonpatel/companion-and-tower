@@ -10,6 +10,8 @@ theories/progress.v
 theories/evolution.v
 theories/tower.v
 theories/companion.v
+theories/higherorder.v
+theories/makeuptoimproved.v
 theories/rel.v
 theories/tactics.v
 theories/tests.v

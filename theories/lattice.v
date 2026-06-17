@@ -40,11 +40,19 @@ Infix "<=" := leq: lattice.
 Notation sup P := (sup' P id).
 Notation inf P := (inf' P id).
 
-Notation "∐ R , P" := (sup (fun R => P)) 
+Notation "∐ P" := (sup P) 
   (at level 200, right associativity).
-Notation "∏ R , P" := (inf (fun R => P))
+Notation "∏ P" := (inf P)
   (at level 200, right associativity).
 
+Section LatticeElems.
+
+Context {X : Type} {CL : CompleteLattice X}.
+
+(* For some reason this one wanted to be written out *)
+Definition lattice_bot := @sup' X CL X (fun _ => False) id.
+
+End LatticeElems.
 
 Section s.
  Context {X} {L: CompleteLattice X}.
@@ -457,6 +465,17 @@ Section mon_comp.
  Lemma o_mcap (h: [Y ⇒ Z]) (f g: [X ⇒ Y]): h ° (cap f g) <= cap (h ° f) (h ° g).
  Proof. intro. apply (mon_cap h). Qed.
 
+  (* todo: nicer inf_spec *)
+
+ Definition inf'' : (X -> Prop) -> X := fun P => sup (fun y => forall x, P x -> y <= x).
+
+ Lemma inf_same P : inf P == inf'' P. 
+ Proof.
+  apply antisym.  
+  apply leq_xsup. intros. apply leq_infx. assumption. 
+  apply inf_spec; intros; apply sup_spec; intros. apply H0. apply H. 
+ Qed. 
+
 End mon_comp.
 Global Opaque cup bot cap top.  (* TODO: check that we still need this *)
 
@@ -585,3 +604,4 @@ Section involutions.
  Qed.
 End involutions.
 Arguments Involution {_ _} _.
+
