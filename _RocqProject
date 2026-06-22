@@ -11,6 +11,7 @@ theories/evolution.v
 theories/tower.v
 theories/companion.v
 theories/diacritical_companion.v
+theories/combine_companions.v
 theories/higherorder.v
 theories/makeuptoimproved.v
 theories/rel.v

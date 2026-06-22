@@ -54,6 +54,93 @@ Arguments progress_monotone_l {X CL progress _}.
 Arguments progress_monotone_r {X CL progress _}.
 Arguments progress_limit_l    {X CL progress _}.
 
+(* Unproved claims:  *)
+
+Section mon_progress. 
+Context {X : Type} {CL : CompleteLattice X}.
+Variable b : mon X. 
+Variable progress : X → X → Prop.
+Notation "R ↣ S" := (progress R S) (at level 70).
+Context {PP : Progress progress}.
+
+(* Claims below Definition 2.3 *)
+(* 2 claims that definitions can definitions of progress and monotone functions
+   can be interchanged: *)
+
+Definition progress_mon := (fun R S => R <= b S).
+
+(* Claim 1: R ↣ᵇ S ≜ R ⊑ b(S) *)
+Lemma progress_mono (R S : X) : Progress progress_mon.
+Proof. 
+  constructor; intros; unfold progress_mon.  
+  now transitivity Q. 
+  now rewrite <- H. 
+  apply sup_spec; intros. apply H. apply H0. 
+Qed. 
+
+
+(* NOT TRUE; CONTRAVARIANT ABOVE IS TRUE *)
+Lemma mon_progress (R : X) : Proper (leq ==> leq) progress.
+Proof. Abort. 
+
+(* Claim 2: b(S) ≜ ⨆ R. R ↣ᵇ S *) (* Roughly *)
+Lemma mon_progress (R : X) : Proper (leq ==> leq) (fun S => ∐ {R | R ↣ S}).
+Proof. 
+  repeat intro. apply leq_xsup. apply progress_limit_l. 
+  intros. now rewrite <- H. 
+Qed. 
+
+
+(* The two claims above are each only *one half* of the correspondence in the
+   remark below Definition 2.3: [progress_mono] turns a monotone function into a
+   progress relation, and [mon_progress] shows the converse map lands in the
+   monotone functions.  What the remark actually asserts is that these two maps
+   are mutually inverse -- *that* is the content, and it is what the (false, as
+   stated) [b_progress] above was groping at.  We make both round-trips precise.
+
+   Note the original [b_progress] could not hold: it related an *arbitrary* [b]
+   to an *arbitrary, unrelated* progress [↣].  The correspondence only pins down
+   [b] from the progress relation it itself induces, and vice versa. *)
+
+(* Round-trip 1  (function → relation → function).
+   Reading the progress relation [progress_mon] induced by [b] back as a
+   function recovers [b] exactly:   ⨆ {R | R ⊑ b S}  ==  b S. *)
+Lemma mon_of_progress_mon S : (∐ {R | progress_mon R S}) == b S.
+Proof.
+  apply antisym.
+  + apply sup_spec. intros R HR. exact HR.   (* each R ⊑ b S *)
+  + apply leq_xsup. unfold progress_mon. reflexivity.   (* b S ⊑ b S, so b S is in the set *)
+Qed.
+
+(* The converse construction, packaged as a genuine monotone function: this is
+   the answer to "monotone functions in terms of progresses".  From an abstract
+   progress relation [↣] we build   b_↣ S  ≜  ⨆ {R | R ↣ S}. *)
+Program Definition mon_of_progress : mon X :=
+  {| body S := ∐ {R | R ↣ S} |}.
+Next Obligation.
+  intros S S' HS. apply sup_spec; intros R HR.
+  apply leq_xsup. eapply progress_monotone_r; [ exact HS | exact HR ].
+Qed.
+
+(* Round-trip 2  (relation → function → relation).
+   Reading [mon_of_progress] back as a progress relation recovers [↣]:
+        R ↣ S   ↔   R ⊑ b_↣ S .
+   Concretely [b_↣ S] is the *greatest* [R] with [R ↣ S], and this is exactly
+   what makes "[R ↣ S]" mean nothing more than "[R ⊑ b_↣ S]" -- the meaning of
+   the progress relation comes first (here, from [progress_limit_l]); the
+   function is then extracted from it. *)
+Lemma progress_mon_of S R : R ↣ S <-> R <= ∐ {Q | Q ↣ S}.
+Proof.
+  split.
+  + intro H. now apply leq_xsup.
+  + intro H. eapply progress_monotone_l; [ exact H | ].
+    apply progress_limit_l. now intros Q HQ.
+Qed.
+
+
+End mon_progress.
+
+
 Section DiProgress.
 Context {X : Type} {CL : CompleteLattice X}.
 

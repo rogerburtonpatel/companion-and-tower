@@ -635,6 +635,15 @@ Section s.
    intros H x. rewrite (id_t' x) at 1. rewrite tt'. exact (H (chain (Ct' x))).
  Qed.
  
+
+ (* NOT TRUE: means f is a valid up-to, not that it's compat.  *)
+ Lemma compat_chain_reverse (f : mon X) : (forall x : Chain, f `x <= `x) -> compat b f. 
+ Proof. 
+ Abort. 
+   
+
+
+
  Lemma Ct x: C (t x).
  Abort.
  Lemma Ct x: exists tx, C tx /\ tx == t x.
@@ -661,16 +670,7 @@ Section s.
  Qed.
 
 
-(* the codomain of t is the tower; t on tower elements is the identity *)
 
-Lemma t_of_tower_id : forall x : Chain, t' `x == `x.
-Proof. 
-  intros R. apply antisym. 
-  rewrite <- tt'; apply t_chain.
-  cbn; unfold t'_, C_. 
-  apply inf_spec. 
-  tauto. 
-Qed.   
 
  (** * additivity of the companion (assuming classical logic) *)
  
@@ -712,24 +712,6 @@ Qed.
 End s.
 End chain.
 
-Ltac apply_leq := match goal with [H : _ <= _ |- _] => intros; apply H end. 
-
-(* nonlinear pattern works here *)
-Ltac induct_on_premise := match goal with 
-| H: context [?rel _] |- context [?rel ] => induction H
-end. 
-
-Ltac monauto := (solve [
-(* break `Proper`, introduce names and premises` *)
-cbv; 
-intros; 
-(* find hypothesis matching goal and proceed by cases *)
-induct_on_premise; 
-(* break down each case as necessary. `solve` will backtrack in a helpful way.  *)
-try econstructor; 
-(* use monotonicity fact itself: [sim] <= [sim'] *)
-try apply_leq; 
-eauto] || fail "`monauto` could not solve this goal."). 
 
 
 (* experiements with mon functions on sets *)

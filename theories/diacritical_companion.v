@@ -13,7 +13,11 @@ Notation "R '↣ₚ' S" := (p R S) (at level 70).
 Notation "R '↣ₐ' S" := (b R S) (at level 70).
 Notation "f ↝ₚ g" := (p_evolution p f g) (at level 70).
 Notation "f ↝ₐ g" := (a_evolution p b f g) (at level 70).
-
+(* (s, f), (s, f)
+    s p s 
+    f p f
+    s a f
+    f p|a f  *)
 Definition compatible f := f ↝ₚ f ∧ f ↝ₐ f.
 Definition compan := ∐ {f | compatible f}.
 
@@ -33,7 +37,7 @@ Lemma compan_compatible : compatible compan.
   apply Hf.
   Qed. 
 
-Lemma ucompan_compatible : u ↝[p] u ∧ u ↝[b] w.
+Lemma ucompan_compatible : u ↝[p] u ∧ u ↝[b] w. 
 Proof. split; apply compan_compatible. Qed.
 
 Lemma ucompan_p_compatible : u ↝[p] u.
