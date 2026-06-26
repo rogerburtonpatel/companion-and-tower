@@ -86,7 +86,17 @@ Record p_evolution (f g : L_lift X) : Prop :=
   { pev_strong : fst f ↝[p] fst g
   ; pev_weak   : snd f ↝[p] snd g
   }.
+(* 
+(s, h) == f 
 
+(u, w) 
+
+1. s ↝ₚ s 
+2. h ↝ₚ h 
+3. s ↝ₐ s 
+4. h ↝ [p # a] h 
+
+*)
 Record a_evolution (f g : L_lift X) : Prop :=
   { aev_strong : fst f ↝[b] snd g
   ; aev_weak   : snd f ↝[p # b] snd g

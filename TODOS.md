@@ -4,6 +4,8 @@
 - [x] Port progress
 - [x] Port rest
 ## Theory 
+
+- [ ] Main quest prelim: build the tower from (s, f)
 - [x] Relate similarity (of a single function) to di-similarity (of a pair of functions): di-similarity just says each function in the pair must progress to itself under a given progression. The two progressions can 
 be different, but if they are the same and the two functions in the pair
 are as well, this is just similarity. 
@@ -84,11 +86,17 @@ well, sound means below t, which means in the tower, probably.
 what about reformulating the companion as the greatest sound function? 
 
 well then how do we show it's compatible? 
-
+- maybe there's a result on this already... either way. 
+either the companion as the greatest compat is the greatest sound, 
+or as the greatest sound is compat and therefore the greatest compat
 
 
 so if we have an f, and f is compatible already, the game is to find an s such that 
 (s, f) is compatible 
+
+game: find "strong partner" of f
+
+
 
 lemma 8 of tower paper, the up-to lemma, is the most interesting right now. 
 
@@ -96,14 +104,24 @@ let g be monotone. then the following are equivalent:
 
 g <= t 
 g ° t <= t 
-∀ x, g (t x) <= t x -> g (f (t x)) <= f (t x)
+∀ x, g (t x) <= t x -> g (b (t x)) <= b (t x)
 
-(here t being the companion of f)
+(here t being the companion of b)
 
-they also show f (t x) is below t (x).  
+they also show b (t x) is below t (x).  
 
-these are ways to prove soundness of g. (corollary is that f is sound)
+these are ways to prove soundness of g. (corollary is that b is sound)
 
+ t x is in the tower, so g x <= t x means g x is in or below the tower. if g x
+ is in the tower... is it sound? 
+
+
+ where does w (x) fall w.r.t. the tower? 
+
+because t <= w, 
+w x is in the tower. 
+so proofs about the tower 
+work for w. 
 
 
 

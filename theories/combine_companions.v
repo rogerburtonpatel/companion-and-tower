@@ -1,6 +1,7 @@
 From Stdlib Require Import Utf8 Setoid Morphisms. 
 Require Import lattice progress evolution companion diacritical_companion. 
-Require Import tactics. 
+Require Import tactics.
+Require Import experiments.
 
 Section Unproved_theorems. 
 Context {X : Type} {CL : CompleteLattice X}.
@@ -12,20 +13,17 @@ Notation "R '↣ᵇ' S" := (progress_mon b R S) (at level 70).
 
 (* Progress-monotone equivalence *)
 
-
-
-(* Other theorems not proved in the paper or development, TODO move eventually *)
+(* progression towards the companion by b is a coinductive principle *)
 Lemma progress_compan_below_gfp R : R ↣ᵇ t b R -> R <= gfp b.
 Proof.
     intros.
-    Locate coinduction. 
     apply companion.coinduction.
     unfold progress_mon in H. apply H.
 Qed.
 
 
-(* The coinductive object [ν(↣ᵇ)] of the induced progress relation -- its
-   [similarity] -- is just the greatest fixpoint [gfp b] of [b]. *)
+(* The coinductive object [ν(↣ᵇ)] of the induced progress relation: its
+   [similarity] is just the greatest fixpoint [gfp b] of [b]. *)
 Lemma similarity_progress_gfp : similarity (progress_mon b) == gfp b.
 Proof.
   apply antisym.
@@ -73,6 +71,7 @@ Notation "` x" := (elem x) (at level 2).
 Notation t' := (chain.t' b). 
  Notation compat f := (f ° b <= b ° f) (only parsing).
 
+ (* a few theorems about the companion and the tower *)
 Lemma t'_of_tower_id : forall x : Chain, t' `x == `x.
 Proof. 
   intros R. apply antisym. 
@@ -133,17 +132,33 @@ Proof.
     now apply coinduction. 
 Qed. 
 
-Lemma sound_below_t g : sound g <-> g <= t. 
+Definition b_evolution f g := forall r s, 
+           progress_mon b r s -> progress_mon b (f r) (g s).
+(* check if this is actually true *)
+Lemma sound_below_t_or_T (g : mon X) : sound g <-> g <= t \/ b_evolution g ((T b) g). 
 Proof. 
-Abort. 
+Admitted.   
 
+(* Lemma sound_below_t g : g <= t -> sound g. 
+Proof. intros.  *)
+(* then prove this *)
 Lemma sound_in_tower g : sound g -> forall x : Chain, g `x <= `x. 
 Proof. 
   intros H x. 
+  apply sound_below_t_or_T in H. destruct H. 
+  - rewrite H. apply chain.t_chain. 
+  -
   
+  red in H. unfold progress_mon in H. 
+  (* assert (forall r s, r <= b s -> g r <= bt b s).  *)
+Abort. 
 
 
-End with_tower. 
+
+
+
+(* build the tower from s, f *)
+End with_tower.
 
 Section Companion.
 Context {X : Type} {CL : CompleteLattice X}.

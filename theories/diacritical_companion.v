@@ -7,12 +7,12 @@ Section Companion.
 Context {X : Type} {CL : CompleteLattice X}.
 
 Variable p : X → X → Prop.
-Variable b : X → X → Prop.
+Variable a : X → X → Prop.
 
 Notation "R '↣ₚ' S" := (p R S) (at level 70).
-Notation "R '↣ₐ' S" := (b R S) (at level 70).
+Notation "R '↣ₐ' S" := (a R S) (at level 70).
 Notation "f ↝ₚ g" := (p_evolution p f g) (at level 70).
-Notation "f ↝ₐ g" := (a_evolution p b f g) (at level 70).
+Notation "f ↝ₐ g" := (a_evolution p a f g) (at level 70).
 (* (s, f), (s, f)
     s p s 
     f p f
@@ -24,7 +24,7 @@ Definition compan := ∐ {f | compatible f}.
 Notation u := (fst compan).
 Notation w := (snd compan).
 
-Context {PP : Progress p} {PB : Progress b}.
+Context {PP : Progress p} {PB : Progress a}.
 
 Lemma compan_compatible : compatible compan.
   Proof.
@@ -37,22 +37,22 @@ Lemma compan_compatible : compatible compan.
   apply Hf.
   Qed. 
 
-Lemma ucompan_compatible : u ↝[p] u ∧ u ↝[b] w. 
+Lemma ucompan_compatible : u ↝[p] u ∧ u ↝[a] w. 
 Proof. split; apply compan_compatible. Qed.
 
 Lemma ucompan_p_compatible : u ↝[p] u.
 Proof. apply compan_compatible. Qed.
 
-Lemma ucompan_a_compatible : u ↝[b] w.
+Lemma ucompan_a_compatible : u ↝[a] w.
 Proof. apply compan_compatible. Qed.
 
-Lemma wcompan_compatible : w ↝[p] w ∧ w ↝[p # b] w.
+Lemma wcompan_compatible : w ↝[p] w ∧ w ↝[p # a] w.
 Proof. split; apply compan_compatible. Qed.
 
 Lemma wcompan_p_compatible : w ↝[p] w.
 Proof. apply compan_compatible. Qed.
 
-Lemma wcompan_a_compatible : w ↝[p # b] w.
+Lemma wcompan_a_compatible : w ↝[p # a] w.
 Proof. apply compan_compatible. Qed.
 
 Lemma compat_below_compan f : compatible f → f <= compan.
@@ -80,7 +80,7 @@ Lemma compan2_compatible : compatible (compan • compan).
 Proof.
 split.
 + apply (p_evolution_comp p); apply compan_compatible.
-+ apply (a_evolution_comp p b); apply compan_compatible.
++ apply (a_evolution_comp p a); apply compan_compatible.
 Qed.
 
 Lemma compan_idempotent : compan • compan <= compan.
@@ -101,31 +101,41 @@ Proof. apply wcompan_idempotent. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma compan_is_disim :
-  compan = di_similarity (p_evolution p) (a_evolution p b).
+  compan = di_similarity (p_evolution p) (a_evolution p a).
 Proof. reflexivity. Qed.
 
 (* ------------------------------------------------------------------------- *)
 
 Lemma disim_const_compatible :
-  compatible (const (di_similarity p b), const (di_similarity p b)).
+  compatible (const (di_similarity p a), const (di_similarity p a)).
 Proof.
-split; split; simpl; split; intros; apply (di_similarity_sim p b).
+split; split; simpl; split; intros; apply (di_similarity_sim p a).
 Qed.
 
 Lemma disim_const_below_compan :
-  (const (di_similarity p b), const (di_similarity p b)) <= compan.
+  (const (di_similarity p a), const (di_similarity p a)) <= compan.
 Proof. apply compat_below_compan, disim_const_compatible. Qed.
 
-Lemma disim_const_below_ucompan : const (di_similarity p b) <= u.
+Lemma disim_const_below_ucompan : const (di_similarity p a) <= u.
 Proof. apply disim_const_below_compan. Qed.
 
-Lemma disim_const_below_wcompan : const (di_similarity p b) <= w.
+Lemma disim_const_below_wcompan : const (di_similarity p a) <= w.
 Proof. apply disim_const_below_compan. Qed.
 
 (* ------------------------------------------------------------------------- *)
 
+
+(* Steve's question: connection between progression and LTSs? *)
+
+(* 
+   R 
+l ↓   ↓ l 
+   R
+*)
+
+
 Theorem soundness (R : X) :
-  R ↣ₚ u R → R ↣ₐ w R → R <= di_similarity p b.
+  R ↣ₚ u R → R ↣ₐ w R → R <= di_similarity p a.
 Proof.
 intros Hpas Hact; transitivity (w (u R)).
 + rewrite <- id_below_ucompan, <- id_below_wcompan; reflexivity.
@@ -140,7 +150,7 @@ intros Hpas Hact; transitivity (w (u R)).
 Qed.
 
 Theorem soundness_f (s f : [X ⇒ X]) (R : X) :
-  R ↣ₚ s R → R ↣ₐ f R → (s, f) <= compan → R <= di_similarity p b.
+  R ↣ₚ s R → R ↣ₐ f R → (s, f) <= compan → R <= di_similarity p a.
 Proof.
 intros Hs Hf Hsf; destruct Hsf as [ Hsu Hfw ].
 apply soundness; eapply progress_monotone_r; try eassumption.
@@ -151,9 +161,9 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma soundness_id_sim R :
-  R ↣ₚ R → R ↣ₐ di_similarity p b → R <= di_similarity p b.
+  R ↣ₚ R → R ↣ₐ di_similarity p a → R <= di_similarity p a.
 Proof.
-intros Hpas Hact; apply (soundness_f id (const (di_similarity p b))).
+intros Hpas Hact; apply (soundness_f id (const (di_similarity p a))).
 + assumption.
 + assumption.
 + split; [ apply id_below_ucompan | apply disim_const_below_wcompan ].
@@ -165,26 +175,26 @@ Section CompanionUW.
 Context {X : Type} {CL : CompleteLattice X}.
 
 Variable p : X → X → Prop.
-Variable b : X → X → Prop.
+Variable a : X → X → Prop.
 
-Context {PP : Progress p} {PB : Progress b}.
+Context {PP : Progress p} {PB : Progress a}.
 
 Notation "R '↣ₚ' S" := (p R S) (at level 70).
-Notation "R '↣ₐ' S" := (b R S) (at level 70).
+Notation "R '↣ₐ' S" := (a R S) (at level 70).
 Notation "f ↝ₚ g" := (p_evolution p f g) (at level 70).
-Notation "f ↝ₐ g" := (a_evolution p b f g) (at level 70).
+Notation "f ↝ₐ g" := (a_evolution p a f g) (at level 70).
 
-Notation u := (fst (compan p b)).
-Notation w := (snd (compan p b)).
+Notation u := (fst (compan p a)).
+Notation w := (snd (compan p a)).
 
 Lemma ucompan_below_wcompan : u <= w.
 Proof.
-assert (Huu : (u, u) <= compan p b).
-{ apply (soundness_id_sim (p_evolution p) (a_evolution p b)).
-+ split; split; intros R S HRS; apply (ucompan_p_compatible p b); assumption.
+assert (Huu : (u, u) <= compan p a).
+{ apply (soundness_id_sim (p_evolution p) (a_evolution p a)).
++ split; split; intros R S HRS; apply (ucompan_p_compatible p a); assumption.
 + split; split; intros R S.
-  - apply (ucompan_a_compatible p b).
-  - intros _; apply (ucompan_a_compatible p b).
+  - apply (ucompan_a_compatible p a).
+  - intros _; apply (ucompan_a_compatible p a).
 }
 destruct Huu; assumption.
 Qed.

@@ -70,7 +70,7 @@ Context {PP : Progress progress}.
 Definition progress_mon := (fun R S => R <= b S).
 
 (* Claim 1: R ↣ᵇ S ≜ R ⊑ b(S) *)
-Lemma progress_mono (R S : X) : Progress progress_mon.
+Lemma progress_mono : Progress progress_mon.
 Proof. 
   constructor; intros; unfold progress_mon.  
   now transitivity Q. 

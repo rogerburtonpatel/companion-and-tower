@@ -21,7 +21,7 @@ Section s1.
 
  (** ** compatible functions *)
  Notation compat f := (f ° b <= b ° f) (only parsing).
- 
+
  (** compositionality properties of compatibility *)
  Lemma compat_id: compat id.
  Proof. reflexivity. Qed.
