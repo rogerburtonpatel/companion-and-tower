@@ -199,4 +199,6 @@ assert (Huu : (u, u) <= compan p a).
 destruct Huu; assumption.
 Qed.
 
+(* Correlary: s <= u -> (s, s) is a sound up-to technique *)
+
 End CompanionUW.

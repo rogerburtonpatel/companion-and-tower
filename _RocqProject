@@ -19,6 +19,7 @@ theories/tests.v
 theories/utils.v
 theories/combine_companions.v
 theories/experiments.v
+theories/eqit_sandbox.v
 theories/all.v
 
 src/reification.ml

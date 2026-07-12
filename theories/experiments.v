@@ -145,6 +145,53 @@ Notation compan := (diacritical_companion.compan p a).
 Notation u := (fst compan).
 Notation w := (snd compan).
 
+(* we want tower induction on b2 for proving f is active up-to techniques *)
+(* take (s, f) to be (⊥, f) for some f *)
+(* obligations on s dispatched trivially *)
+(* f needs to b1-evolve to f, and contitionally evolve to f. *)
+(* then f is a sound up-to *)
+(* can we embed these conditions in the tower *)
+
+(* really, to prove any f is a sound up-to active technique, 
+we should be able to do so by tower induction on b2's tower! 
+this is because f need only be sound in active cases, 
+and b2's tower is only active cases. 
+*)
+
+(* Setting the strong partner [s := bot] makes the two [s]-obligations
+   ([pev_strong], [aev_strong]) trivial ([bot <= _]).  What remains is a clean
+   SUFFICIENT condition for [f] to be a sound active up-to technique ([f <= w]):
+   [f] must b1-evolve to itself and conditionally b2-evolve to itself. *)
+Lemma f_below_w (f : [X ⇒ X])
+  (Hp : evolution p f f)          (* pev_weak : f ↝[b1] f *)
+  (Ha : r_evolution p a f f) :    (* aev_weak : f ↝[b1 # b2] f *)
+  f <= w.
+Proof.
+  cut ((bot, f) <= compan); [intuition|].
+  apply compat_below_compan. split; split.
+  - constructor; intros R S _; unfold progress_mon; apply leq_bx.  (* bot ↝[b1] bot *)
+  - exact Hp.
+  - constructor; intros R S _; unfold progress_mon; apply leq_bx.  (* bot ↝[b2] f *)
+  - exact Ha.
+Qed.
+
+(* Since the active obligation [aev_weak] is only the *conditional* b2-evolution,
+   ordinary b2-compatibility ([f ° b2 <= b2 ° f]) is already enough for it -- the
+   [R <= b1 R] premise is simply discarded.  So: a technique that is compatible
+   with the ACTIVE behaviour and b1-evolves to itself is a sound active up-to. *)
+Corollary compat_active_below_w (f : [X ⇒ X])
+  (Hp : evolution p f f)          (* f b1-evolves to itself *)
+  (Hc : f ° b2 <= b2 ° f) :       (* f is compatible with the active behaviour *)
+  f <= w.
+Proof.
+  apply f_below_w; [ exact Hp | ].
+  constructor. intros R S _ HRS.
+  red.
+  transitivity (f (b2 S)).
+  - apply (Hbody f). exact HRS.
+  - apply (Hc S).
+Qed.
+
 (* The combined behaviour is the meet, and the di-similarity of the pair is its
    greatest fixpoint: [R <= b1 R /\ R <= b2 R] iff [R <= (b1 ⊓ b2) R]. *)
 Lemma di_similarity_meet_gfp : di_similarity p a == gfp (cap b1 b2).
@@ -156,6 +203,20 @@ Proof.
     pose proof (gfp_pfp (cap b1 b2)) as H. apply cap_spec in H.
     exact H.
 Qed.
+
+(* Lemma di_similarity_join_gfp : di_similarity p a == gfp (cup b1 b2).
+Proof.
+  apply antisym.
+  - unfold di_similarity. apply sup_spec. intros R [H1 H2].
+    apply leq_gfp. apply leq_xcup. now left. 
+  - apply leq_xsup.
+    pose proof (gfp_pfp (cup b1 b2)) as H.
+    apply cup_spec.  
+    Search cup. 
+    
+    apply leq_xcup in H.
+    exact H.
+Qed. *)
 
 (* Both components are compatible w.r.t. the PASSIVE [b1] -- [pev_strong] for
    [u], [pev_weak] for [w] -- so both lie below the passive companion [t b1].
@@ -197,10 +258,32 @@ Proof.
   - apply (disim_const_below_wcompan p a bot).
 Qed.
 
-(* Hence [w]'s tower bottoms out at the combined bisimilarity: [w] is a *sound*
-   enhancement -- its fixpoint from [bot] is the gfp, exactly like [t]. *)
+(* Hence [w]'s tower bottoms out at the combined bisimilarity.
+  Thus [w] is a sound enhancement; its fixpoint from [bot] is the gfp, 
+  just like [t]. *)
 Corollary w_bot_gfp : w bot == gfp (cap b1 b2).
 Proof. rewrite w_bot_eq_di_similarity. apply di_similarity_meet_gfp. Qed.
+Lemma w_top : w top == top. 
+Proof. apply antisym. 
+    - apply leq_xt. 
+    - cbn. eapply eleq_xsup. 
+      unshelve (instantiate (1:=p_id)). 
+      + apply id_compatible; typeclasses eauto. 
+      + reflexivity. 
+Qed. 
+Print tower.C. 
+
+(* we want the w-tower *)
+(* so that by w-tower-induction we can prove conditional soundness
+   of techniques. *)
+
+   (* idea: fix (s) of (s, f) to be b-realted. then we can 
+      specify the restrictions on f from that using the rules w.r.t. an existing b, 
+      and then have a hole for soundness. *)
+
+(* an essential precondition result of this approach is that conditional soundness
+w.r.t. b - i.e., f being conditionally sound because (b, f) is sound - 
+is sufficient criteria for identifying _any_ conditionally sound up-to funciton.  *)
 
 (* Why the collapse argument from [Section pairs] breaks here, and what stays
    open:
@@ -251,6 +334,42 @@ Qed.
 
 
 
+
+(* Does w preserve the COMBINED tower (the reverse of w_in_tower_b')?
+   Attempt by tower induction; watch where it stalls. *)
+Proposition w_in_tower_b'_rev : forall x : Chain b', w `x <= `x.
+Proof.
+  apply (tower (P := fun y => w y <= y)).
+  - apply inf_closed_leq.
+  - intros x IH. apply cap_spec. split.
+    + (* w (b' `x) <= b1 `x : passive half, unconditional (pev_weak) *)
+      destruct (wcompan_p_compatible p a) as [Hw].
+      transitivity (b1 (w `x)).
+      * apply (Hw (b' `x) `x). apply cap_l.
+      * now apply b1.
+    + (* w (b' `x) <= b2 `x : active half (aev_weak) *)
+      destruct (wcompan_a_compatible p a) as [Hw'].
+      transitivity (b2 (w `x)).
+      * apply (Hw' (b' `x) `x).
+        -- (* PREMISE: b' `x <= b1 (b' `x)  -- b' `x must be a b1-post-fixpoint *)
+           admit.
+        -- apply cap_r.
+      * now apply b2.
+Abort.
+(* Conclusion: the reverse reduces to [b' `x <= b1 (b' `x)] (a b1-post-fixpoint
+   condition on the b'-image), which the diacritical laws do NOT supply and which
+   fails at large chain elements.  So [w] is NOT absorbed by the combined chain,
+   and tower induction over [Chain b'] cannot host the active up-to.  It IS hosted
+   by the passive chain [Chain b1] ([w_in_tower_b1]). *)
+
+(* The usable diacritical coinduction principle: to land in the combined gfp,
+   progress passively via [u] and actively via [w].  This is the "swap" target
+   (Pous' [soundness], with [di_similarity = gfp b'] plugged in). *)
+Corollary di_coinduction (R : X) : R ↣ₚ u R -> R ↣ₐ w R -> R <= gfp b'.
+Proof.
+  intros H1 H2. rewrite <- chain.gfp_tower, <- di_similarity_meet_gfp.
+  now apply (soundness p a).
+Qed.
 
 (* is w actually preserving tower membership? *)
 
@@ -494,5 +613,7 @@ Example similarity_passive_companion :
 Proof. exact (u_t sim). Qed.
 
   (* w's image is in the tower *)
+
+
 
 End simulation.

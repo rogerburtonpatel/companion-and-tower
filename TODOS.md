@@ -118,12 +118,8 @@ these are ways to prove soundness of g. (corollary is that b is sound)
 
  where does w (x) fall w.r.t. the tower? 
 
-because t <= w, 
-w x is in the tower. 
-so proofs about the tower 
-work for w. 
-
-
+well, w ⊥ = di_similarity p a == gfp (b1 ∪ b2)
+what is w ⊤ ? maybe it is top 
 
 research idea: 
 disqualification of up-to-ness. 
@@ -138,4 +134,67 @@ can such a thing be sound? probably. can it be complete? probably not.
 
 ## Usability 
 - [ ] Recover Build_mon - mon as a sublattice of monotone heterogenous functions?  
+- [ ] make progress a true typeclass 
+s.t. the type of di_similarity is
+Progress X X -> Progress X X -> X. 
+scratch
 
+paper example 3.8 
+
+R ↣ₚ R 
+R ↣ₐ S 
+
+x v1 ecxt(R) E2[e2]
+x R e2 
+y v1 R E2[y]
+
+x v1 open-stuck, so must show E2 [e2] 
+reduces to open-stuck 
+
+x R e2 /\ R ↣ₚ R 
+------------------
+exists v, e2 ->* v /\ x z R v z, z fresh 
+
+why? by definition 
+
+
+y v1 R E2[y] x z R v z, z fresh 
+----------------------
+x v1 subst(R) E2[v]
+
+why? 
+
+y v1 R E2[y] /\  x x' R v x', x' fresh  
+------------------------------
+x v1 subst (R) E2[v]
+
+sure, but very little explanation 
+of how substitution works 
+
+
+ 
+ relate definition 4.1 to t 
+
+ evolve on Remark 4.9 so that diff between 
+ respectfulness and compatibility goes
+ away and we can recover good properties 
+ of composition 
+
+ we really need simplicity here. 
+ things are hard to piece together. 
+
+ Supposedly a picture: 
+
+             top  ●───────────────────────────  (full relation)
+                 │ \
+                 │  \   ← b'-tower: the THIN CHAIN
+       b' top →  ●   \     top ≥ b'top ≥ b'²top ≥ … ≥ gfp,
+                 │    \    closed under b' and infima
+      b'² top →  ●     \
+                 │   ○ ← w R   (a w-closed element: above gfp,
+                 │  /            below top, NOT on the b'-chain)
+                 ● /
+                  X  ← gfp b'  (= w bot = t b' bot : shared bottom)
+                 ╱ ╲
+                ╱   ╲  ← region BELOW gfp: also not in the tower
+          bot  ●─────────────────────────────  (empty relation)
