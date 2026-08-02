@@ -145,11 +145,11 @@ Section DiProgress.
 Context {X : Type} {CL : CompleteLattice X}.
 
 Variable p : X → X → Prop.
-Variable b : X → X → Prop.
+Variable a : X → X → Prop.
 
-Context {PP : Progress p} {PB : Progress b}.
+Context {PP : Progress p} {PB : Progress a}.
 Notation "R '↣ₚ' S" := (p R S) (at level 70).
-Notation "R '↣ₐ' S" := (b R S) (at level 70).
+Notation "R '↣ₐ' S" := (a R S) (at level 70).
 
 Definition di_similarity := ∐ {R | R ↣ₚ R ∧ R ↣ₐ R}.
 

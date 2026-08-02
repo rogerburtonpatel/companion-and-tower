@@ -1,40 +1,31 @@
-(** * A concrete itree example for the diacritical companion + second-order tower
+(** * Interaction trees for the diacritical companion and its second-order tower
 
-    This file grounds the abstract development ([experiments.v],
-    [diacritical_redesign.v]) on real interaction trees.  Definitions of [itree]
-    and [eqit] are pared down from InteractionTrees
-    ([Core/ITreeDefinition.v], [Eq/Eqit.v]); everything else is phrased over
-    THIS coinduction library ([mon]/[gfp] from [lattice]/[tower]) so the
-    diacritical companion machinery applies verbatim.
+    Grounds the abstract development ([experiments.v], [diacritical_redesign.v])
+    on real interaction trees.  [itree] and [eqit] are pared down from
+    InteractionTrees ([Core/ITreeDefinition.v], [Eq/Eqit.v]); everything else is
+    phrased over THIS library ([mon]/[gfp] from [lattice]/[tower]), so the
+    diacritical machinery applies verbatim.
 
-    Road-map:
-    - [Section itree]/[Section eqit]: minimal itrees and [eqit]
-      ([eq_itree] = strong bisim, [eutt] = weak bisim up to tau).
-    - [Section strong]: the passive/active split of STRONG bisimilarity
-      ([g_p] owns tau, [g_a] owns the observable payload).  Its diacritical
-      di-similarity is exactly [eq_itree] ([di_similarity_eq_itree]) -- a clean,
-      fully-proved behavioural decomposition on real itrees.
-    - the diacritical companion [(u,w)] of the split, and the SECOND-ORDER tower
-      [B_di] instantiated at the itree relation lattice: [compan_gfp],
-      [di_tower], [di_coinduction] all specialise for free.
-    - [Section payoff]: concrete equivalences proved through the diacritical
-      coinduction / tower principles.
-    - [Section eutt_frontier]: the WEAK (tau-stripping) split.  BOTH directions
-      are proved: [eutt_leq_disim] and, via the tau-closure reconstruction
-      [meet_functor], [disim_leq_eutt] -- giving [disim_eq_eutt :
-      di_similarity == eutt].  The crux is the case where the two halves strip
-      tau on OPPOSITE sides; it is resolved by the strip lemmas, which are
-      available precisely because a diacritical bisimulation satisfies both
-      progressions.
-    - [Section weak_diacritical]: consequently the whole stack (companion
-      [(u,w)], second-order tower, diacritical coinduction) applies to WEAK
-      bisimilarity; concrete payoff [eutt_tau : eutt (Tau t) t].
-    - [Section upto_transitivity]: a concrete technique certified [sqr <= w]
-      through the diacritical laws, plus [eq_itree_trans] (transitivity of
-      strong bisimilarity) proved via the split.
-    - [Section couple_fails] / [Section upto_eutt_fails] and the closing
-      FINDING: why neither natural candidate is an active-only technique for a
-      permissive-meet split, and what a split must satisfy to host one. *)
+    A behaviour is split into a PASSIVE and an ACTIVE progression whose meet is
+    the equivalence of interest.  The diacritical companion [(u,w)] of that pair
+    supplies coinduction ([soundness]) and, being itself a greatest fixpoint on
+    the lattice of PAIRS of relations, a second-order tower.
+
+    - [Section strong]: the split of STRONG bisimilarity -- [g_p] owns tau,
+      [g_a] owns the observable payload; [di_similarity_eq_itree] shows the meet
+      is exactly [eq_itree].
+    - [Section strong_diacritical]: the companion, the second-order tower
+      ([itree_compan_gfp], [itree_di_tower]) and diacritical coinduction,
+      instantiated at the itree relation lattice.
+    - [Section payoff]: [eq_itree_refl], read off the split.
+    - [Section upto_transitivity]: up-to-transitivity certified [sqr <= w] both
+      by coinduction ([sqr_below_w]) and by SECOND-ORDER TOWER INDUCTION
+      ([sqr_below_w_tower], via [experiments.f_below_w_tower]), plus
+      [eq_itree_trans].
+    - [Section weak]: the same for WEAK bisimilarity.  The passive half owns tau
+      ONLY (permissive at both frontiers); the active half is the full eutt
+      functor, so the Ret and Vis obligations -- the cases in which up-to-eutt is
+      valid -- both sit on the active side. *)
 
 From Stdlib Require Import Utf8 Setoid Morphisms Program.Equality.
 Require Import lattice progress evolution companion diacritical_companion tower.
@@ -44,7 +35,6 @@ Require Import experiments.
 Set Implicit Arguments.
 Set Contextual Implicit.
 Set Primitive Projections.
-
 (* ------------------------------------------------------------------------- *)
 (** ** Interaction trees (minimal, from [ITreeDefinition.v]) *)
 
@@ -260,14 +250,17 @@ Section strong_diacritical.
   Qed.
 
   (* SECOND-ORDER TOWER INDUCTION on itrees: an inf-closed invariant on pairs
-     of itree relations, preserved by one [B_di]-step, holds of the companion
-     pair [(u,w)] -- the itree instance of [di_tower]. *)
+     of itree relations, preserved by one [B_di]-step, holds at the gfp of
+     [B_di] -- the itree instance of [experiments.di_tower_gfp].  No [Proper]
+     side-condition: the gfp is itself a chain element.  Crossing to the
+     companion pair, when needed, is the order fact
+     [experiments.gfp_B_di_below_compan]. *)
   Corollary itree_di_tower (Q : L_lift (itree -> itree -> Prop) -> Prop)
-    (HQ : Proper (weq ==> Basics.impl) Q) (Hinf : inf_closed Q)
+    (Hinf : inf_closed Q)
     (Hstep : forall x : Chain (experiments.B_di gp ga),
                Q (elem x) -> Q (experiments.B_di gp ga (elem x))) :
-    Q compan.
-  Proof. apply (experiments.di_tower gp ga); assumption. Qed.
+    Q (tower.gfp (experiments.B_di gp ga)).
+  Proof. apply (experiments.di_tower_gfp gp ga); assumption. Qed.
 
 End strong_diacritical.
 
@@ -367,6 +360,24 @@ Section upto_transitivity.
   Theorem sqr_below_w : sqr <= w.
   Proof. exact (experiments.f_below_w gp ga sqr sqr_passive sqr_active). Qed.
 
+  (* The same certification by SECOND-ORDER TOWER INDUCTION
+     ([experiments.f_below_w_tower]).  Here the obligations are discharged
+     against a chain element [snd x] rather than against [sqr] itself, and the
+     induction hypothesis [IH : sqr <= snd x] is what closes the gap.  This is
+     the tower-native route to an active up-to technique: the target is a chain
+     element, so anything known about chain elements is available. *)
+  Theorem sqr_below_w_tower : sqr <= w.
+  Proof.
+    apply experiments.f_below_w_tower. intros x IH. split.
+    - intros S1 S2 H t1 t2 [t3 [H1 H2]].
+      (* one step into [g_p (sqr S2)], then the IH lifts it to [g_p (snd x S2)] *)
+      apply (g_pF_mono (IH S2)).
+      exact (g_pF_trans (H t1 t3 H1) (H t3 t2 H2)).
+    - intros S1 S2 _ H t1 t2 [t3 [H1 H2]].
+      apply (@g_aF_mono E R RR _ _ (IH S2)).
+      exact (g_aF_trans (H t1 t3 H1) (H t3 t2 H2)).
+  Qed.
+
   (* PAYOFF: strong bisimilarity is transitive, via the diacritical split.
      [sqr (eq_itree RR)] is exhibited as a DIACRITICAL bisimulation. *)
   Lemma eq_itree_step :
@@ -391,443 +402,144 @@ Section upto_transitivity.
   Qed.
 
 End upto_transitivity.
-
 (* ------------------------------------------------------------------------- *)
-(** ** WEAK bisimilarity (eutt) splits diacritically -- both directions.
+(** ** WEAK bisimilarity: passive owns tau, active is the eutt functor.
 
-    The interesting active-only techniques live over WEAK bisimilarity, where
-    tau is silent.  The split now has each half strip tau ITSELF ([BpTauL/R],
-    [BaTauL/R]): [b_p] owns [Ret] (checks [RR]) + tau, permissive on [Vis];
-    [b_a] owns [Vis] (checks continuations) + tau, permissive on [Ret].
+    For eutt the two concerns are TAU (passive) and the observable behaviour
+    (active).  So [c_p] owns the tau structure only -- synchronisation and
+    stripping -- and is PERMISSIVE at both frontiers; in particular it does not
+    check [RR].  The active functor is the full eutt functor, putting the Ret
+    and Vis obligations on the active side, which is where up-to-eutt is valid
+    (the Vis-Vis case).
 
-    Both directions are proved here:
-    - [eutt_leq_disim]: eutt is a diacritical bisimulation (easy direction);
-    - [disim_leq_eutt]: every diacritical bisimulation is a eutt-bisimulation.
-      This is the genuine TAU-CLOSURE RECONSTRUCTION ([meet_functor]) -- the
-      case where the two halves strip tau on OPPOSITE sides, which the naive
-      destruction cannot handle.  The resolution: a diacritical bisimulation
-      [sim] satisfies BOTH progressions, which makes the four tau-strip lemmas
-      ([bpF_strip_TauL/R], [baF_strip_TauL/R]) provable; a strip lemma then
-      re-aligns the mismatched derivation so the induction hypothesis applies.
-    Together: [disim_eq_eutt : di_similarity == eutt].  So the whole diacritical
-    stack -- companion [(u,w)], second-order tower, diacritical coinduction --
-    applies to WEAK bisimilarity, where the active-only techniques live. *)
+    A discarded carve, recorded because the mistake is instructive: giving the
+    passive half the [RR] check while ALSO giving it a stopping synchronised-tau
+    rule makes it punish a eutt-closure for exposing a deferred Ret check -- an
+    obligation that is not the tau concern at all.  It also forces a painful
+    tau-alignment reconstruction to recover eutt.  With the carve below,
+    [di_similarity] is eutt in a few lines. *)
 
-Section eutt_frontier.
+Section weak.
   Context {E : Type -> Type} {R : Type} (RR : R -> R -> Prop).
   Notation itree := (itree E R).
+  Notation Rel := (itree -> itree -> Prop).
 
-  Inductive b_pF (sim : itree -> itree -> Prop) : itree' E R -> itree' E R -> Prop :=
-  | BpRet r1 r2 (REL : RR r1 r2) : b_pF sim (RetF r1) (RetF r2)
-  | BpVis {u1} (e1 : E u1) k1 {u2} (e2 : E u2) k2 : b_pF sim (VisF e1 k1) (VisF e2 k2)
-  | BpTau m1 m2 (REL : sim m1 m2) : b_pF sim (TauF m1) (TauF m2)
-  | BpTauL t1 ot2 (REL : b_pF sim (observe t1) ot2) : b_pF sim (TauF t1) ot2
-  | BpTauR ot1 t2 (REL : b_pF sim ot1 (observe t2)) : b_pF sim ot1 (TauF t2).
+  Inductive c_pF (sim : Rel) : itree' E R -> itree' E R -> Prop :=
+  | CpRet r1 r2 : c_pF sim (RetF r1) (RetF r2)
+  | CpVis {u1} (e1 : E u1) k1 {u2} (e2 : E u2) k2 : c_pF sim (VisF e1 k1) (VisF e2 k2)
+  | CpTau m1 m2 (REL : sim m1 m2) : c_pF sim (TauF m1) (TauF m2)
+  | CpTauL t1 ot2 (REL : c_pF sim (observe t1) ot2) : c_pF sim (TauF t1) ot2
+  | CpTauR ot1 t2 (REL : c_pF sim ot1 (observe t2)) : c_pF sim ot1 (TauF t2).
 
-  Inductive b_aF (sim : itree -> itree -> Prop) : itree' E R -> itree' E R -> Prop :=
-  | BaRet r1 r2 : b_aF sim (RetF r1) (RetF r2)
-  | BaVis {u} (e : E u) k1 k2 (REL : forall v, sim (k1 v) (k2 v)) : b_aF sim (VisF e k1) (VisF e k2)
-  | BaTau m1 m2 (REL : sim m1 m2) : b_aF sim (TauF m1) (TauF m2)
-  | BaTauL t1 ot2 (REL : b_aF sim (observe t1) ot2) : b_aF sim (TauF t1) ot2
-  | BaTauR ot1 t2 (REL : b_aF sim ot1 (observe t2)) : b_aF sim ot1 (TauF t2).
-
-  Lemma eutt_below_bp sim : eqitF RR true true sim <= b_pF sim.
-  Proof.
-    intros ot1 ot2 H. induction H.
-    - apply BpRet; assumption.
-    - apply BpTau; assumption.
-    - apply BpVis.
-    - apply BpTauL; assumption.
-    - apply BpTauR; assumption.
-  Qed.
-
-  Lemma eutt_below_ba sim : eqitF RR true true sim <= b_aF sim.
-  Proof.
-    intros ot1 ot2 H. induction H.
-    - apply BaRet.
-    - apply BaTau; assumption.
-    - apply BaVis; assumption.
-    - apply BaTauL; assumption.
-    - apply BaTauR; assumption.
-  Qed.
-
-  Lemma b_pF_mono {sim sim' : itree -> itree -> Prop} (H : sim <= sim') : b_pF sim <= b_pF sim'.
+  Lemma c_pF_mono {sim sim' : Rel} (H : sim <= sim') : c_pF sim <= c_pF sim'.
   Proof.
     intros ot1 ot2 He. induction He.
-    - apply BpRet; assumption.
-    - apply BpVis.
-    - apply BpTau; apply H; assumption.
-    - apply BpTauL; assumption.
-    - apply BpTauR; assumption.
-  Qed.
-  Lemma b_aF_mono {sim sim' : itree -> itree -> Prop} (H : sim <= sim') : b_aF sim <= b_aF sim'.
-  Proof.
-    intros ot1 ot2 He. induction He.
-    - apply BaRet.
-    - apply BaVis; intro v; apply H; apply REL.
-    - apply BaTau; apply H; assumption.
-    - apply BaTauL; assumption.
-    - apply BaTauR; assumption.
+    - apply CpRet.
+    - apply CpVis.
+    - apply CpTau; apply H; assumption.
+    - apply CpTauL; assumption.
+    - apply CpTauR; assumption.
   Qed.
 
-  Definition b_p_ (sim : itree -> itree -> Prop) : itree -> itree -> Prop :=
-    fun t1 t2 => b_pF sim (observe t1) (observe t2).
-  Definition b_a_ (sim : itree -> itree -> Prop) : itree -> itree -> Prop :=
-    fun t1 t2 => b_aF sim (observe t1) (observe t2).
-  Lemma b_p__mono : Proper (leq ==> leq) b_p_.
-  Proof. intros sim sim' H t1 t2 He. exact (b_pF_mono H _ _ He). Qed.
-  Lemma b_a__mono : Proper (leq ==> leq) b_a_.
-  Proof. intros sim sim' H t1 t2 He. exact (b_aF_mono H _ _ He). Qed.
-  Definition b_p : mon (itree -> itree -> Prop) := {| body := b_p_ ; Hbody := b_p__mono |}.
-  Definition b_a : mon (itree -> itree -> Prop) := {| body := b_a_ ; Hbody := b_a__mono |}.
-  #[local] Instance Pbp : Progress (progress_mon b_p) := progress_mono b_p.
-  #[local] Instance Pba : Progress (progress_mon b_a) := progress_mono b_a.
+  Definition c_p_ (sim : Rel) : Rel := fun t1 t2 => c_pF sim (observe t1) (observe t2).
+  Lemma c_p__mono : Proper (leq ==> leq) c_p_.
+  Proof. intros sim sim' H t1 t2 He. exact (c_pF_mono H _ _ He). Qed.
+  Definition c_p : mon Rel := {| body := c_p_ ; Hbody := c_p__mono |}.
 
-  (* SOUND direction: eutt is a diacritical bisimulation of the weak split.
-     Unfold eutt once ([gfp_pfp]) and refine into each half. *)
-  Theorem eutt_leq_disim :
-    eutt RR <= di_similarity (progress_mon b_p) (progress_mon b_a).
-  Proof.
-    apply leq_xsup. split; intros t1 t2 H.
-    - apply eutt_below_bp. exact (gfp_pfp (eqit_mon RR true true) t1 t2 H).
-    - apply eutt_below_ba. exact (gfp_pfp (eqit_mon RR true true) t1 t2 H).
-  Qed.
+  Notation c_a := (@eqit_mon E R RR true true).
+  #[local] Instance Pcp : Progress (progress_mon c_p) := progress_mono c_p.
+  #[local] Instance Pca : Progress (progress_mon c_a) := progress_mono c_a.
 
-  (* --- tau-strip lemmas: when [sim] is a bisimulation, a tau on either side can
-     be pushed into the derivation.  The synchronised-tau case ([BpTau]/[BaTau])
-     is exactly where the bisimulation hypothesis unfolds [sim] -- WITHOUT it
-     these are false, which is why the reconstruction needs a bisimulation. --- *)
-  Lemma bpF_strip_TauR {sim : itree -> itree -> Prop}
-    (Hsp : forall t1 t2, sim t1 t2 -> b_pF sim (observe t1) (observe t2)) :
-    forall os1 ot2, b_pF sim os1 ot2 -> forall t2, ot2 = TauF t2 -> b_pF sim os1 (observe t2).
-  Proof.
-    intros os1 ot2 H.
-    induction H as [ r1 r2 HRR | u1 e1 k1 u2 e2 k2 | m1 m2 REL | t1 o2 REL IH | o1 t2 REL IH ];
-      intros tt2 Heq; try discriminate.
-    - inversion Heq; subst. apply BpTauL. apply Hsp. exact REL.
-    - apply BpTauL. exact (IH tt2 Heq).
-    - inversion Heq; subst. exact REL.
-  Qed.
-
-  Lemma bpF_strip_TauL {sim : itree -> itree -> Prop}
-    (Hsp : forall t1 t2, sim t1 t2 -> b_pF sim (observe t1) (observe t2)) :
-    forall os1 ot2, b_pF sim os1 ot2 -> forall t1, os1 = TauF t1 -> b_pF sim (observe t1) ot2.
-  Proof.
-    intros os1 ot2 H.
-    induction H as [ r1 r2 HRR | u1 e1 k1 u2 e2 k2 | m1 m2 REL | t1 o2 REL IH | o1 t2 REL IH ];
-      intros tt1 Heq; try discriminate.
-    - inversion Heq; subst. apply BpTauR. apply Hsp. exact REL.
-    - inversion Heq; subst. exact REL.
-    - apply BpTauR. exact (IH tt1 Heq).
-  Qed.
-
-  Lemma baF_strip_TauR {sim : itree -> itree -> Prop}
-    (Hsa : forall t1 t2, sim t1 t2 -> b_aF sim (observe t1) (observe t2)) :
-    forall os1 ot2, b_aF sim os1 ot2 -> forall t2, ot2 = TauF t2 -> b_aF sim os1 (observe t2).
-  Proof.
-    intros os1 ot2 H.
-    induction H as [ r1 r2 | u e k1 k2 REL | m1 m2 REL | t1 o2 REL IH | o1 t2 REL IH ];
-      intros tt2 Heq; try discriminate.
-    - inversion Heq; subst. apply BaTauL. apply Hsa. exact REL.
-    - apply BaTauL. exact (IH tt2 Heq).
-    - inversion Heq; subst. exact REL.
-  Qed.
-
-  Lemma baF_strip_TauL {sim : itree -> itree -> Prop}
-    (Hsa : forall t1 t2, sim t1 t2 -> b_aF sim (observe t1) (observe t2)) :
-    forall os1 ot2, b_aF sim os1 ot2 -> forall t1, os1 = TauF t1 -> b_aF sim (observe t1) ot2.
-  Proof.
-    intros os1 ot2 H.
-    induction H as [ r1 r2 | u e k1 k2 REL | m1 m2 REL | t1 o2 REL IH | o1 t2 REL IH ];
-      intros tt1 Heq; try discriminate.
-    - inversion Heq; subst. apply BaTauR. apply Hsa. exact REL.
-    - inversion Heq; subst. exact REL.
-    - apply BaTauR. exact (IH tt1 Heq).
-  Qed.
-
-  (* THE RECONSTRUCTION (the tau-closure lemma the sandbox left admitted): for a
-     bisimulation [sim], the meet of the two halves refines eutt's functor.  The
-     tau cross-cases (strip on OPPOSITE sides) are the crux -- resolved by
-     re-aligning with a strip lemma, then feeding the induction hypothesis. *)
-  Lemma meet_functor {sim : itree -> itree -> Prop}
-    (Hsp : forall t1 t2, sim t1 t2 -> b_pF sim (observe t1) (observe t2))
-    (Hsa : forall t1 t2, sim t1 t2 -> b_aF sim (observe t1) (observe t2)) :
-    forall ot1 ot2, b_pF sim ot1 ot2 -> b_aF sim ot1 ot2 -> eqitF RR true true sim ot1 ot2.
-  Proof.
-    intros ot1 ot2 Hp.
-    induction Hp as [ r1 r2 HRR | u1 e1 k1 u2 e2 k2 | m1 m2 REL | t1 o2 REL IH | o1 t2 REL IH ];
-      intros Hba.
-    - apply EqRet. exact HRR.
-    - dependent destruction Hba. apply EqVis. exact REL.
-    - apply EqTau. exact REL.
-    - (* BpTauL: ot1 = TauF t1 *)
-      inversion Hba; subst.
-      + (* BaTau: synchronised tau *) apply EqTau; assumption.
-      + (* BaTauL: both strip left *) apply EqTauL; [ reflexivity | apply IH; assumption ].
-      + (* BaTauR: OPPOSITE strip -- re-align via strip lemma, feed IH *)
-        apply EqTauL; [ reflexivity | ].
-        apply IH. apply BaTauR. eapply (baF_strip_TauL Hsa); [ eassumption | reflexivity ].
-    - (* BpTauR: ot2 = TauF t2 *)
-      inversion Hba; subst.
-      + (* BaTau *) apply EqTau; assumption.
-      + (* BaTauL: OPPOSITE strip *)
-        apply EqTauR; [ reflexivity | ].
-        apply IH. apply BaTauL. eapply (baF_strip_TauR Hsa); [ eassumption | reflexivity ].
-      + (* BaTauR: both strip right *) apply EqTauR; [ reflexivity | apply IH; assumption ].
-  Qed.
-
-  (* HARD DIRECTION: every diacritical bisimulation of the weak split is a
-     eutt-bisimulation.  The witness [sim] IS a bisimulation, so [meet_functor]
-     applies.  With [eutt_leq_disim] this gives [di_similarity == eutt]. *)
-  Theorem disim_leq_eutt :
-    di_similarity (progress_mon b_p) (progress_mon b_a) <= eutt RR.
-  Proof.
-    unfold eutt, eqit. apply leq_gfp. intros t1 t2 Hds.
-    destruct Hds as [sim [Hbp Hba] H].
-    assert (Hsub : sim <= di_similarity (progress_mon b_p) (progress_mon b_a))
-      by (apply leq_xsup; split; assumption).
-    apply (eqitF_mono RR true true Hsub).
-    apply (meet_functor Hbp Hba).
-    - exact (Hbp t1 t2 H).
-    - exact (Hba t1 t2 H).
-  Qed.
-
-  (* The weak split's diacritical di-similarity is EXACTLY weak bisimilarity. *)
-  Theorem disim_eq_eutt :
-    di_similarity (progress_mon b_p) (progress_mon b_a) == eutt RR.
-  Proof. apply antisym; [ apply disim_leq_eutt | apply eutt_leq_disim ]. Qed.
-
-End eutt_frontier.
-
-(* ------------------------------------------------------------------------- *)
-(** ** Why the passive functor is NOT itself active-only (couple fails).
-
-    The abstract [experiments.b1_active_only] proves [b1 <= w] from the coupling
-    law [couple : R <= b1 R -> R <= b2 S -> b1 R <= b2 (b1 S)].  On a real
-    bisimulation split this law is FALSE: the passive functor [b_p] is permissive
-    on the active concern (it relates two [Vis]es with DIFFERENT events), whereas
-    the active [b_a] demands matching events.  So [b_p R] contains pairs that
-    [b_a (b_p S)] rejects.  We exhibit this concretely with two events [0 <> 1].
-
-    Hence [b_p] is not a sound active enhancement; the genuinely active-only
-    techniques (up-to-eutt, up-to-transitivity) are the ones whose soundness
-    needs the tau-closure reconstruction above -- that is where the diacritical
-    tower does real work beyond the reach of ordinary compatibility. *)
-
-Section couple_fails.
-  Notation NatE := (fun _ : Type => nat).
-  Notation itN := (itree NatE nat).
-  Definition k0 : unit -> itN := fun _ => Ret 0.
-
-  Notation bp := (@b_p NatE nat (@eq nat)).
-  Notation ba := (@b_a NatE nat).
-
-  Remark couple_fails_weak :
-    ~ (forall R S : itN -> itN -> Prop,
-          R <= bp R -> R <= ba S -> bp R <= ba (bp S)).
-  Proof.
-    intro H. specialize (H bot bot (leq_bx _) (leq_bx _)).
-    assert (Hp : bp bot (Vis (0 : NatE unit) k0) (Vis (1 : NatE unit) k0)) by apply BpVis.
-    apply H in Hp. inversion Hp.
-  Qed.
-
-End couple_fails.
-
-(* ------------------------------------------------------------------------- *)
-(** ** The diacritical companion for WEAK bisimilarity, and an ACTIVE-ONLY
-       up-to technique.
-
-    [disim_eq_eutt] licenses the whole stack over eutt.  We now exhibit a
-    technique that is sound in ACTIVE position but NOT a compatible up-to
-    technique for the passive behaviour: "up-to tau on the right" [tauR].
-
-    [tauR R] relates [t1] to [t2] whenever [R] relates [t1] to [Tau t2] -- i.e.
-    it lets a proof insert a tau on the right.  This is:
-    - sound for the ACTIVE half: [b_a] strips tau itself ([BaTauR]);
-    - UNSOUND as an ordinary (passive-strength) technique in the sense that it is
-      NOT [b_p]-compatible for arbitrary relations -- see [tauR_not_compat]. *)
-
-Section weak_diacritical.
-  Context {E : Type -> Type} {R : Type} (RR : R -> R -> Prop).
-  Notation itree := (itree E R).
-  Notation bp := (@b_p E R RR).
-  Notation ba := (@b_a E R).
-  #[local] Instance Pbp' : Progress (progress_mon bp) := progress_mono bp.
-  #[local] Instance Pba' : Progress (progress_mon ba) := progress_mono ba.
-
-  Notation compan := (diacritical_companion.compan (progress_mon bp) (progress_mon ba)).
+  Notation compan := (diacritical_companion.compan (progress_mon c_p) (progress_mon c_a)).
   Notation u := (fst compan).
   Notation w := (snd compan).
 
-  (* the diacritical di-similarity of the weak split is eutt *)
-  Corollary weak_companion_eutt :
-    di_similarity (progress_mon bp) (progress_mon ba) == eutt RR.
-  Proof. apply disim_eq_eutt. Qed.
-
-  (* the second-order tower, now for eutt *)
-  Corollary weak_compan_gfp : compan == tower.gfp (experiments.B_di bp ba).
-  Proof. apply (experiments.compan_gfp bp ba). Qed.
-
-  (* DIACRITICAL COINDUCTION INTO EUTT: progress passively via [u], actively via
-     [w], and land in weak bisimilarity. *)
-  Corollary eutt_di_coinduction (S : itree -> itree -> Prop)
-    (Hp : S <= bp (u S)) (Ha : S <= ba (w S)) : S <= eutt RR.
+  Lemma eutt_below_cp (sim : Rel) : eqitF RR true true sim <= c_pF sim.
   Proof.
-    rewrite <- weak_companion_eutt.
-    apply (diacritical_companion.soundness (progress_mon bp) (progress_mon ba)); assumption.
+    intros ot1 ot2 H. induction H.
+    - apply CpRet.
+    - apply CpTau; assumption.
+    - apply CpVis.
+    - apply CpTauL; assumption.
+    - apply CpTauR; assumption.
   Qed.
 
-  (* --- concrete payoff: tau-absorption, [eutt (Tau t) t] ---
+  (* the meet is exactly eutt; both directions are easy, since the active half
+     alone already pins the behaviour down *)
+  Theorem disim_weak_eutt :
+    di_similarity (progress_mon c_p) (progress_mon c_a) == eutt RR.
+  Proof.
+    apply antisym.
+    - unfold di_similarity. apply sup_spec. intros S [_ Ha].
+      unfold eutt, eqit. apply leq_gfp. exact Ha.
+    - apply leq_xsup. split.
+      + intros t1 t2 H. apply eutt_below_cp.
+        exact (gfp_pfp (eqit_mon RR true true) t1 t2 H).
+      + exact (gfp_pfp (eqit_mon RR true true)).
+  Qed.
 
-     Proved by exhibiting a DIACRITICAL bisimulation: the relation "left is one
-     tau ahead of right, or they are equal".  It self-progresses in BOTH halves,
-     hence lies in [di_similarity] = [eutt] ([weak_companion_eutt]).  Note each
-     half absorbs the tau with its OWN strip rule ([BpTauL] / [BaTauL]) -- this
-     is exactly the structure the reconstruction validates. *)
+  (* the second-order tower, for eutt *)
+  Corollary weak_compan_gfp : compan == tower.gfp (experiments.B_di c_p c_a).
+  Proof. apply (experiments.compan_gfp c_p c_a). Qed.
+
+  (* diacritical coinduction into eutt: progress passively via [u], actively
+     via [w] *)
+  Corollary eutt_di_coinduction (S : Rel)
+    (Hp : S <= c_p (u S)) (Ha : S <= c_a (w S)) : S <= eutt RR.
+  Proof.
+    rewrite <- disim_weak_eutt.
+    apply (diacritical_companion.soundness (progress_mon c_p) (progress_mon c_a)); assumption.
+  Qed.
+
+  (* [pev_weak] is unconditional, so [w] is itself c_p-compatible: the
+     diacritical extra power is confined to the CONDITIONAL active law and can
+     never exceed the passive companion.  Contrapositive: a technique unsound
+     for the passive behaviour cannot be active-sound either. *)
+  Corollary weak_w_below_passive : w <= companion.t c_p.
+  Proof. exact (experiments.w_below_t1 c_p c_a). Qed.
+
+  Corollary not_below_w (f : mon Rel) :
+    ~ (f <= companion.t c_p) -> ~ (f <= w).
+  Proof. intros Hn H. apply Hn. rewrite H. exact weak_w_below_passive. Qed.
+
+  (* ---- payoff: tau is silent ---- *)
   Hypothesis Hrefl : forall r, RR r r.
 
-  Definition tau_ahead : itree -> itree -> Prop :=
+  Definition tau_shift : Rel :=
     fun t1 t2 => t1 = t2 \/ observe t1 = TauF t2 \/ observe t2 = TauF t1.
 
-  Lemma tau_ahead_diag_p (ot : itree' E R) : b_pF RR tau_ahead ot ot.
+  Lemma tau_shift_diag (ot : itree' E R) : eqitF RR true true tau_shift ot ot.
   Proof.
     destruct ot as [ r | m | X e k ].
-    - apply BpRet, Hrefl.
-    - apply BpTau. left. reflexivity.
-    - apply BpVis.
+    - apply EqRet, Hrefl.
+    - apply EqTau. left. reflexivity.
+    - apply EqVis. intro v. left. reflexivity.
   Qed.
 
-  Lemma tau_ahead_diag_a (ot : itree' E R) : b_aF tau_ahead ot ot.
+  Lemma tau_shift_below_eutt : tau_shift <= eutt RR.
   Proof.
-    destruct ot as [ r | m | X e k ].
-    - apply BaRet.
-    - apply BaTau. left. reflexivity.
-    - apply BaVis. intro v. left. reflexivity.
+    unfold eutt, eqit. apply leq_gfp.
+    intros t1 t2 [<- | [Ht | Ht]]; cbn; unfold eqit_.
+    - apply tau_shift_diag.
+    - rewrite Ht. apply EqTauL; [ reflexivity | apply tau_shift_diag ].
+    - rewrite Ht. apply EqTauR; [ reflexivity | apply tau_shift_diag ].
   Qed.
 
-  Lemma tau_ahead_below_eutt : tau_ahead <= eutt RR.
-  Proof.
-    rewrite <- weak_companion_eutt. apply leq_xsup. split.
-    - intros t1 t2 [<- | [Ht | Ht]]; cbn; unfold b_p_.
-      + apply tau_ahead_diag_p.
-      + rewrite Ht. apply BpTauL. apply tau_ahead_diag_p.
-      + rewrite Ht. apply BpTauR. apply tau_ahead_diag_p.
-    - intros t1 t2 [<- | [Ht | Ht]]; cbn; unfold b_a_.
-      + apply tau_ahead_diag_a.
-      + rewrite Ht. apply BaTauL. apply tau_ahead_diag_a.
-      + rewrite Ht. apply BaTauR. apply tau_ahead_diag_a.
-  Qed.
-
-  (* tau is silent for weak bisimilarity -- through the diacritical companion. *)
-  Theorem eutt_tau (t : itree) : eutt RR (Tau t) t.
-  Proof. apply tau_ahead_below_eutt. right. left. reflexivity. Qed.
-
+  Theorem eutt_tau  (t : itree) : eutt RR (Tau t) t.
+  Proof. apply tau_shift_below_eutt. right. left. reflexivity. Qed.
   Theorem eutt_tau' (t : itree) : eutt RR t (Tau t).
-  Proof. apply tau_ahead_below_eutt. right. right. reflexivity. Qed.
-
+  Proof. apply tau_shift_below_eutt. right. right. reflexivity. Qed.
   Corollary eutt_refl (t : itree) : eutt RR t t.
-  Proof. apply tau_ahead_below_eutt. left. reflexivity. Qed.
+  Proof. apply tau_shift_below_eutt. left. reflexivity. Qed.
 
-  (* STATUS of genuinely active-only techniques over eutt.
+  (* OPEN.  Whether up-to-eutt (the two-sided closure [eutt o S o eutt]) is
+     [<= w] here is not settled.  The remaining obligation is [pev_weak], which
+     is unconditional and quantifies over an ARBITRARY target [S]:
+       [S1 <= c_p S2 -> eutt_clo S1 <= c_p (eutt_clo S2)].
+     The case to examine is [CpTau] with an [S2] relating a divergent tree to a
+     convergent one: the closure absorbs taus on one side only, and [c_pF],
+     inductive in its stripping rules, may then have no derivation.  If the
+     two-sided closure does fail, the question becomes which guarded form
+     succeeds. *)
 
-     The stack above is now fully available for eutt, so a technique [f] is a
-     sound ACTIVE up-to as soon as [f <= w], for which [experiments.f_below_w]
-     asks only two [f]-laws (strong partner [bot]).  What remains OPEN here is
-     exhibiting a concrete [f] that is [<= w] but NOT below the ordinary
-     companion [t (bp cap ba)].
-
-     Two natural candidates provably FAIL, for the same structural reason --
-     each functor is PERMISSIVE on the other's concern:
-     - [bp] as an active technique: refuted by [couple_fails_weak] below
-       ([bp] relates two [Vis]es with different events; [ba] rejects them);
-     - [ba] as a passive technique: symmetric ([ba] relates any two [Ret]s,
-       [bp] demands [RR]).
-     A working candidate must therefore be a closure that exploits the active
-     law's premise [R <= bp R] itself (up-to-eutt / up-to-transitivity), whose
-     soundness needs transitivity of eutt -- a further ITree-scale development.
-     The machinery to certify it, once formulated, is complete and in place. *)
-
-End weak_diacritical.
-
-(* ------------------------------------------------------------------------- *)
-(** ** Is the CLASSIC active-only technique (up-to-eutt) below [w] here?  NO.
-
-    Up-to-weak-bisimilarity is the textbook technique that is unsound in general
-    but sound in active position -- exactly what [w] is meant to license.  But
-    [f <= w] requires (via [pev_weak], which is UNCONDITIONAL) that [f] be
-    [b_p]-compatible, and up-to-eutt is not.  Counterexample below. *)
-
-Section upto_eutt_fails.
-  Notation NatE := (fun _ : Type => nat).
-  Notation itN := (itree NatE nat).
-  Notation bp := (@b_p NatE nat (@eq nat)).
-  Notation eqn := (@eq nat).
-
-  Definition eutt_clo (S : itN -> itN -> Prop) : itN -> itN -> Prop :=
-    fun t1 t2 => exists s1 s2, eutt eqn t1 s1 /\ S s1 s2 /\ eutt eqn s2 t2.
-
-  Definition Rbad : itN -> itN -> Prop :=
-    fun t1 t2 => t1 = Tau (Ret 0) /\ t2 = Tau (Ret 1).
-  Definition Sbad : itN -> itN -> Prop :=
-    fun t1 t2 => t1 = Ret 0 /\ t2 = Ret 1.
-
-  Lemma Rbad_step : Rbad <= bp Sbad.
-  Proof. intros t1 t2 [-> ->]. cbn. unfold b_p_. apply BpTau. split; reflexivity. Qed.
-
-  (* [Ret 0] and [Ret 1] are in the eutt-closure of [Rbad]: absorb one tau on
-     each side ([eutt_tau'] / [eutt_tau]). *)
-  Lemma bad_in_clo : eutt_clo Rbad (Ret 0) (Ret 1).
-  Proof.
-    exists (Tau (Ret 0)), (Tau (Ret 1)). split; [ | split ].
-    - apply (@eutt_tau' NatE nat eqn (fun r => eq_refl)).
-    - split; reflexivity.
-    - apply (@eutt_tau NatE nat eqn (fun r => eq_refl)).
-  Qed.
-
-  (* ...but [b_p] demands [RR] at a Ret frontier, and [0 <> 1]. *)
-  Theorem upto_eutt_not_bp_compatible :
-    ~ (forall S1 S2 : itN -> itN -> Prop, S1 <= bp S2 -> eutt_clo S1 <= bp (eutt_clo S2)).
-  Proof.
-    intro H. pose proof (H Rbad Sbad Rbad_step (Ret 0) (Ret 1) bad_in_clo) as Hbad.
-    cbn in Hbad. unfold b_p_ in Hbad. inversion Hbad. discriminate REL.
-  Qed.
-
-End upto_eutt_fails.
-
-(* ------------------------------------------------------------------------- *)
-(** * FINDING: what an active-only technique must look like, and why neither
-      candidate qualifies for a permissive-meet split.
-
-    [f <= w] is established by [experiments.f_below_w] from two laws:
-      (P) [pev_weak]  [evolution p f f]     -- UNCONDITIONAL b_p-compatibility;
-      (A) [aev_weak]  [r_evolution p a f f] -- b_a-compatibility, CONDITIONAL on
-                                               the premise [R <= b_p R].
-    (P) is unconditional even when the strong partner is [bot], so:
-
-      *** every [f <= w] is fully b_p-compatible, hence [w <= t b_p]. ***
-
-    (this is [itree_w_below_passive] / [experiments.w_below_t1]).  So the extra
-    power of [w] over the ordinary companion [t (b_p cap b_a)] is located in
-    exactly ONE place: the b_a law may use the premise.  An active-only
-    technique must therefore be b_p-compatible, and b_a-compatible only
-    conditionally.  Both natural candidates provably fail one of the two:
-
-    - up-to-eutt (the textbook active-only technique) fails (P):
-      [upto_eutt_not_bp_compatible].  Absorbing a tau on each side moves a Ret
-      frontier past a synchronised-tau step ([BpTau]), and [b_p] then demands
-      [RR] where none is available.  This is not a defect of the proof but of
-      the split: [b_p] has a stopping [BpTau] rule, so it is not eutt-closed.
-    - the passive functor [b_p] itself fails (A): [couple_fails_weak].  It
-      relates two [Vis] nodes with different events (it is PERMISSIVE on the
-      active concern), which [b_a] rejects -- and the premise, which constrains
-      [R], cannot repair pairs that [f] manufactures out of [R].
-
-    The second failure is structural for ANY permissive-meet split: each half is
-    permissive exactly on the concern the other half checks, so a technique
-    built from one half always manufactures pairs the other rejects, and a
-    premise on [R] has no purchase on them.  Realising the diacritical extra
-    power therefore needs a split whose PASSIVE functor is already closed under
-    the equivalence being enhanced (so that (P) is free), rather than merely
-    permissive on the active concern.  That is the next design step; the
-    certification machinery for it ([f_below_w], and [sqr_below_w] as a worked
-    instance) is complete and in place. *)
+End weak.
