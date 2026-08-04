@@ -24,6 +24,7 @@ theories/active_only.v
 theories/diacritical_tower_example.v
 theories/eqit_sandbox.v
 theories/diacritical_redesign.v
+theories/bugfixes.v
 theories/all.v
 
 src/reification.ml
