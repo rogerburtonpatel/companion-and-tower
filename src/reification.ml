@@ -88,6 +88,15 @@ let apply rname mode goal =
   let debug c = ignore (Feedback.msg_warning (Printer.pr_leconstr_env env sigma c)) in
   let convertible = Reductionops.is_conv env sigma in
   let _ = debug in
+  (* name of the head constructor of a term, for debugging messages *)
+  let kind_name c = match kind sigma c with
+    | Rel _ -> "Rel" | Var _ -> "Var" | Evar _ -> "Evar" | Sort _ -> "Sort"
+    | Cast _ -> "Cast" | Prod _ -> "Prod" | Lambda _ -> "Lambda"
+    | LetIn _ -> "LetIn" | App _ -> "App" | Const _ -> "Const"
+    | Ind _ -> "Ind" | Construct _ -> "Construct" | Case _ -> "Case"
+    | Fix _ -> "Fix" | CoFix _ -> "CoFix" | Proj _ -> "Proj"
+    | _ -> "other"
+  in
   let rconstr = mkVar rname in
   let _,rtype = Typing.type_of env sigma rconstr in  
   let (s,l,b) = match kind sigma rtype with
@@ -141,18 +150,18 @@ let apply rname mode goal =
      - in the `By_symmetry case, [REL'] involves a [mkRel] whose index depends on the depth at wich it gets replaced; [i] is used to record the current depth 
      the Boolean is only used for the `By_symmetry mode: setting it to false makes it possible to reverse all pairs in the candidate
    *)
-  let rec parse e =
+  let rec parse env e =
     match kind sigma e with
     (* both universal quantification and implication *)
     | Prod(i,w,q) ->
-       let (c,x,g) = parse q in
+       let (c,x,g) = parse (push_rel (Context.Rel.Declaration.LocalAssum(i,w)) env) q in
        (Cnd.abs w (mkLambda(i,w,c)),
         mkLambda(i,w,x),
         (fun v l r -> mkProd(i,w,g v (l+1) r)))
     (* conjunction *)
     | App(c,[|p1;p2|]) when c=Lazy.force Rocq.and_ ->
-       let (c1,x1,g1) = parse p1 in
-       let (c2,x2,g2) = parse p2 in
+       let (c1,x1,g1) = parse env p1 in
+       let (c2,x2,g2) = parse env p2 in
        (Cnd.cnj c1 c2,
         Rocq.pair (Cnd.fT a c1) (Cnd.fT a c2) x1 x2,
         (fun v l r -> mkApp(c,[|g1 v l r;g2 v l r|])))
@@ -177,7 +186,16 @@ let apply rname mode goal =
     (* gfp b (should be dealt with beforehand) *)
     | App(c,_) when c = Lazy.force Cnd.gfp -> error "only one coinductive predicate is allowed"       
     (* other cases are not handled *)
-    | _ -> error "unsupported subterm"
+    | _ ->
+       (* debug: report the offending subterm itself, printed in the local
+          context [env] where it occurs, so that variables bound by the
+          enclosing Prods show up under their names rather than as
+          [_UNBOUND_REL_n].  [kind_name] gives the head constructor, which is
+          what actually decides which branch above failed to match. *)
+       CErrors.user_err
+         Pp.(str "[coinduction] unsupported subterm ("
+             ++ str (kind_name e) ++ str "):" ++ spc ()
+             ++ Printer.pr_leconstr_env env sigma e)
   in
 
   (* extension of the above function for `Accumulate(n):
@@ -197,19 +215,21 @@ let apply rname mode goal =
      the key invariant is that the starting type [e] 
      should be convertible to [pTs a cs r (pT a c r x)]
    *)
-  let rec parse_acc n e =
+  let rec parse_acc n env e =
     match kind sigma n with
     | App(_,[|n|]) ->
        begin                    (* S n *)
          match kind sigma e with
          | Prod(i,l,q) ->
-            let (d,u,l') = parse l in
-            let (cs,c,x,g) = parse_acc n q in
+            let (d,u,l') = parse env l in
+            let (cs,c,x,g) =
+              parse_acc n (push_rel (Context.Rel.Declaration.LocalAssum(i,l)) env) q
+            in
             (Cnd.tcons a d u cs, c, x, mkProd(i,l' true 0 (fun _ -> rel),g))
          | _ -> failwith "anomaly, mismatch in hypotheses number (please report)"
        end
     | _ ->                      (* 0 *)
-       let (c,x,e') = parse e in
+       let (c,x,e') = parse env e in
        (Cnd.tnil a, c, x,
         mkArrowR
           (e' true 0 (fun _ -> rel))
@@ -219,11 +239,11 @@ let apply rname mode goal =
   (* main entry point *)
   match mode with
   | `PTower i ->
-     let (cs,c,x,g) = parse_acc i (Tacmach.pf_concl goal) in
+     let (cs,c,x,g) = parse_acc i env (Tacmach.pf_concl goal) in
      (* here we first revert R and re-introduce it afterwards in order to keep the same name for the candidate.
         we do so in OCaml rather than in Ltac: this makes it possible to avoid the mess with de Bruijn indices *)
-     (* debug (Cnd.ptower a b cs c x); *)
-     (* debug g; *)
+     debug (Cnd.ptower a b cs c x);
+     debug g;
      tclTHEN (Generalize.revert [rname])
        (tclTHEN (typecheck_and_apply (Cnd.ptower a b cs c x))
           (tclTHEN (Tactics.introduction rname)
@@ -231,7 +251,7 @@ let apply rname mode goal =
        ))
      
   | `By_symmetry ->
-     let (c,x,g) = parse (Tacmach.pf_concl goal) in
+     let (c,x,g) = parse env (Tacmach.pf_concl goal) in
      (* several catches here...
 
         1. We would like to do just
