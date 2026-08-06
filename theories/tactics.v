@@ -388,8 +388,27 @@ Declare ML Module "rocq-coinduction.plugin".
     - to `change' the new goal to get rid of the reified operations and get back to a goal resembling the initial one
     (The last step could be implemented with [simpl reification.pT], but this would result in unwanted additional simplifications, and this resets names of bound variables in a very bad way. This is why we spend time in OCaml to reconstruct a type for the new goal by following syntactically the initial one.)
   *)
+(** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
+    conclusion of the goal: those appearing in the hypotheses must be left
+    alone, since the reified syntax cannot represent a candidate occurring on
+    the left of an arrow.
+    We thus strip the leading telescope into the context before applying
+    [gfp_prop], and revert it once [R] has been introduced, so that [R] ends up
+    outside and the hypotheses inside, as [apply_ptower] expects.
+    [intro] (rather than [intro h] on a fresh [h]) is used in order to preserve
+    the names of the bound variables. *)
+Ltac gfp_intro R :=
+  lazymatch goal with
+  | |- forall _ : _, _ =>
+      intro;
+      lazymatch goal with
+      | h: _ |- _ => gfp_intro R; revert h
+      end
+  | |- _ => apply gfp_prop; intro R
+  end.
+
 Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
-  apply gfp_prop; intro R; apply_ptower R O; intros H.
+  gfp_intro R; apply_ptower R O; intros H.
 
 (** ** accumulating knowledge in a proof by enhanced coinduction *)
 

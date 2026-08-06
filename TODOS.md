@@ -1,3 +1,19 @@
+## Usability 
+- [ ] Use camltac over ocaml plugin 
+- [ ] Recover Build_mon - mon as a sublattice of monotone heterogenous functions?  
+- [ ] make progress a true typeclass 
+s.t. the type of di_similarity is
+Progress X X -> Progress X X -> X. 
+## Bugfixes
+- [x] gfp in premise bug
+- [ ] apply_ptower (auto inf closed) for tower induction.
+- [ ] Reflexive_chain failing when elem has arguments.
+- [ ] accumulate unsupported subterm 
+- [ ] accumulate no such chain
+- [ ] better stepping. 
+- [ ] Damien: use preorder library. 
+
+
 ## Basics
 - [x] Port lattice (trivial)
 - [x] Port mon_h 
