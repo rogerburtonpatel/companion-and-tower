@@ -178,8 +178,13 @@ Goal elem cb x y.
   Fail rewrite CONDITIONAL_UPTO. 
   Fail eapply HProperActive. 
   Fail eapply HProperActive_after. 
+  accumulate acc.
 
-  clear HProperActive. (* we actually won't need this one. *)
+  assert (h : b (elem cb) z y) by admit.
+  clear ACTIVE_STEP.
+  clear h.
+Abort.
+  (* clear HProperActive. (* we actually won't need this one. *)
 
   step.
   apply Hb. 
@@ -188,7 +193,7 @@ Goal elem cb x y.
   we can rewrite _knowing_ we will take an active step... *)
   rewrite CONDITIONAL_UPTO. 
   apply ACTIVE_STEP.
-Qed. 
+Qed.  *)
 
 
 End tests. 
