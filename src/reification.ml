@@ -59,8 +59,11 @@ module Cnd = struct
   let fT          = get_fun_2 "coinduction.fT"
   let pT_         = get_const "coinduction.pT"
   let pT          = get_fun_4 "coinduction.pT"
+  let mon_id      = get_fun_2 "coinduction.id"
+  let comp_       = get_const "coinduction.comp"
+  let comp s l f g = force_app comp_ [|s;s;s;l;l;l;f;g|]
   let tnil        = get_fun_1 "coinduction.tnil"
-  let tcons       = get_fun_4 "coinduction.tcons"
+  let tcons       = get_fun_5 "coinduction.tcons"
   let ptower      = get_fun_5 "coinduction.ptower"
   let by_symmetry = get_fun_4 "coinduction.by_symmetry"
 end 
@@ -88,15 +91,6 @@ let apply rname mode goal =
   let debug c = ignore (Feedback.msg_warning (Printer.pr_leconstr_env env sigma c)) in
   let convertible = Reductionops.is_conv env sigma in
   let _ = debug in
-  (* name of the head constructor of a term, for debugging messages *)
-  let kind_name c = match kind sigma c with
-    | Rel _ -> "Rel" | Var _ -> "Var" | Evar _ -> "Evar" | Sort _ -> "Sort"
-    | Cast _ -> "Cast" | Prod _ -> "Prod" | Lambda _ -> "Lambda"
-    | LetIn _ -> "LetIn" | App _ -> "App" | Const _ -> "Const"
-    | Ind _ -> "Ind" | Construct _ -> "Construct" | Case _ -> "Case"
-    | Fix _ -> "Fix" | CoFix _ -> "CoFix" | Proj _ -> "Proj"
-    | _ -> "other"
-  in
   let rconstr = mkVar rname in
   let _,rtype = Typing.type_of env sigma rconstr in  
   let (s,l,b) = match kind sigma rtype with
@@ -104,6 +98,7 @@ let apply rname mode goal =
     | _ -> error "expecting a chain element as candidate"
   in
   let rel = Cnd.elem s l b rconstr in
+  let idm = Cnd.mon_id s l in
   let a =
     (* when [s] is [A -> B -> Prop], returns [ABS A (ABS B PRP)] *)
     let rec get_arity s = 
@@ -150,19 +145,43 @@ let apply rname mode goal =
      - in the `By_symmetry case, [REL'] involves a [mkRel] whose index depends on the depth at wich it gets replaced; [i] is used to record the current depth 
      the Boolean is only used for the `By_symmetry mode: setting it to false makes it possible to reverse all pairs in the candidate
    *)
+  (* FIX: parsing a relation built from the candidate by a chain of monotone
+     functions, as in [ba (ba (elem R))].
+     returns [None] when the relation is the candidate itself, and otherwise
+     the composed monotone function, together with a function rebuilding the
+     original nested syntax so that reconstructed goals keep their shape. *)
+  let rec parse_fun r =
+    if convertible r rel then (None, fun r -> r)
+    else match kind sigma r with
+      | App(c,slbfr) when c=Lazy.force Cnd.body_ ->
+         (match Array.to_list slbfr with
+          | [_;_;_;_;f;r'] ->
+             let (h,rebuild) = parse_fun r' in
+             ((match h with None -> Some f | Some h -> Some (Cnd.comp s l f h)),
+              (fun r -> Cnd.body s l f (rebuild r)))
+          | _ -> error "not an application of monotone functions to the candidate")
+      | _ -> error "not an application of monotone functions to the candidate"
+  in
+
   let rec parse env e =
     match kind sigma e with
     (* both universal quantification and implication *)
     | Prod(i,w,q) ->
-       let (c,x,g) = parse (push_rel (Context.Rel.Declaration.LocalAssum(i,w)) env) q in
-       (Cnd.abs w (mkLambda(i,w,c)),
+       let (b,c,x,g) = parse (push_rel (Context.Rel.Declaration.LocalAssum(i,w)) env) q in
+       if not (Vars.noccurn sigma 1 b) then
+         error "the function applied to the candidate must not depend on locally bound variables";
+       (Vars.lift (-1) b,
+        Cnd.abs w (mkLambda(i,w,c)),
         mkLambda(i,w,x),
         (fun v l r -> mkProd(i,w,g v (l+1) r)))
     (* conjunction *)
     | App(c,[|p1;p2|]) when c=Lazy.force Rocq.and_ ->
-       let (c1,x1,g1) = parse env p1 in
-       let (c2,x2,g2) = parse env p2 in
-       (Cnd.cnj c1 c2,
+       let (f1,c1,x1,g1) = parse env p1 in
+       let (f2,c2,x2,g2) = parse env p2 in
+       if not (convertible f1 f2) then
+         error "both sides of a conjunction must apply the same function to the candidate; split it into separate hypotheses";
+       (f1,
+        Cnd.cnj c1 c2,
         Rocq.pair (Cnd.fT a c1) (Cnd.fT a c2) x1 x2,
         (fun v l r -> mkApp(c,[|g1 v l r;g2 v l r|])))
     (* elem s l b r ... *)
@@ -171,30 +190,40 @@ let apply rname mode goal =
         | _::_::_::r'::xs ->
            if not (convertible r' rconstr) then
              error "only one candidate is allowed";
-           (Lazy.force Cnd.hol,tuple xs,
+           (idm,Lazy.force Cnd.hol,tuple xs,
             (fun v l r -> mkApp(r l,swap v xs)))
         | _ -> assert false)
-    (* body s l b r x y *)      
+    (* FIX: [b (elem R) u v], i.e. a leaf about [b R] rather than about [R] itself.
+       [b] is returned so that [parse_acc] can record it in the [tcons] entry. *)
+    | App(c,slbfr_) when mode <>`By_symmetry && c=Lazy.force Cnd.body_ ->
+       (match Array.to_list slbfr_ with
+        | _::_::_::_::b::r'::xs ->
+           let (h,rebuild) = parse_fun r' in
+           let f = match h with None -> b | Some h -> Cnd.comp s l b h in
+           let apply_f r = Cnd.body s l b (rebuild r) in
+           (f,Lazy.force Cnd.hol,tuple xs,
+            (fun v l r -> mkApp(apply_f (r l),swap v xs)))
+        | _ -> assert false)
+    (* body s l b r x y *)
     | App(c,slbrxy) when mode =`By_symmetry && c=Lazy.force Cnd.body_ ->
        (match slbrxy with
           [|_;_;_;_;b';r';x;y|] ->
            if not (convertible r' rel &&convertible b' b) then
              error "only one candidate is allowed";
-           (Lazy.force Cnd.hol,tuple [x;y],
+           (b',Lazy.force Cnd.hol,tuple [x;y],
             (fun v l r -> mkApp(r l,swap v [x;y])))
           | _ -> error "binary relation expected for reasonning by symmetry")
     (* gfp b (should be dealt with beforehand) *)
     | App(c,_) when c = Lazy.force Cnd.gfp -> error "only one coinductive predicate is allowed"       
     (* other cases are not handled *)
     | _ ->
-       (* debug: report the offending subterm itself, printed in the local
-          context [env] where it occurs, so that variables bound by the
-          enclosing Prods show up under their names rather than as
-          [_UNBOUND_REL_n].  [kind_name] gives the head constructor, which is
-          what actually decides which branch above failed to match. *)
+       (* the message now reports the invalid subterm. 
+       we thread the local context env to perform lookups here (otherwise you get
+          _UNBOUND_REL_n). *)
        CErrors.user_err
          Pp.(str "[coinduction] unsupported subterm ("
-             ++ str (kind_name e) ++ str "):" ++ spc ()
+             (* ++ str (kind_name e)  *)
+             ++ str "):" ++ spc ()
              ++ Printer.pr_leconstr_env env sigma e)
   in
 
@@ -220,16 +249,20 @@ let apply rname mode goal =
     | App(_,[|n|]) ->
        begin                    (* S n *)
          match kind sigma e with
-         | Prod(i,l,q) ->
-            let (d,u,l') = parse env l in
+         | Prod(i,w,q) ->
+            (* FIX: [b] is the function this hypothesis applies to the candidate
+               ([id] for a plain [elem R] hypothesis); it becomes the [tcons] entry. *)
+            let (b,d,u,w') = parse env w in
             let (cs,c,x,g) =
-              parse_acc n (push_rel (Context.Rel.Declaration.LocalAssum(i,l)) env) q
+              parse_acc n (push_rel (Context.Rel.Declaration.LocalAssum(i,w)) env) q
             in
-            (Cnd.tcons a d u cs, c, x, mkProd(i,l' true 0 (fun _ -> rel),g))
+            (Cnd.tcons a b d u cs, c, x, mkProd(i,w' true 0 (fun _ -> rel),g))
          | _ -> failwith "anomaly, mismatch in hypotheses number (please report)"
        end
     | _ ->                      (* 0 *)
-       let (c,x,e') = parse env e in
+       let (b',c,x,e') = parse env e in
+       if not (convertible b' idm) then
+         error "the conclusion must be about the candidate itself, not about a function of it";
        (Cnd.tnil a, c, x,
         mkArrowR
           (e' true 0 (fun _ -> rel))
@@ -251,7 +284,7 @@ let apply rname mode goal =
        ))
      
   | `By_symmetry ->
-     let (c,x,g) = parse env (Tacmach.pf_concl goal) in
+     let (_,c,x,g) = parse env (Tacmach.pf_concl goal) in
      (* several catches here...
 
         1. We would like to do just

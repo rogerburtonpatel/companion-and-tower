@@ -31,10 +31,10 @@ Section s.
   Goal forall n m (k: n=m), n+n ~ m+m /\ forall k, n+k ~ k+m.
     coinduction R H.
   Abort.
-  (* TODO: make this work:  *)
+  (* hypotheses mentioning [gfp b] are left untouched *)
   Goal gfp b 5 6 -> gfp b 7 8.
-    Fail coinduction R H.
-Abort. 
+    coinduction R H.
+  Abort.
   Goal gfp b 5 6 /\ gfp c 7 8.
     Fail coinduction R H.
   Abort.

@@ -34,11 +34,10 @@ Abort.
 
 End s.
 
-(** ** [accumulate] rejects hypotheses of the shape [f (elem R) u v]
+(** ** [accumulate] on hypotheses of the shape [f (elem R) u v]
 
-    reification only recognises [elem R u v] at the leaves, so any hypothesis
-    stating that a pair belongs to some monotone function *applied to* the
-    candidate is reported as an unsupported subterm.
+    such hypotheses are recorded in the [Ts] list together with the function
+    [f] they apply to the candidate, and are carried through untouched.
     extracted from [human_experiments.v], section [tests]. *)
 
 Section accumulate_body.
@@ -48,24 +47,72 @@ Section accumulate_body.
   Variables x y z: X.
   Variable cb: Chain b.
 
-  (** through a foreign monotone function:
-      [[coinduction] unsupported subterm (App): ba `cb z y] *)
+  (** through a foreign monotone function *)
   Goal ba (elem cb) z y -> elem cb x y.
     intro ACTIVE_STEP.
-    Fail accumulate acc.
+    accumulate acc.
   Abort.
 
-  (** through [b] itself, which is no better:
-      [[coinduction] unsupported subterm (App): b `cb z y] *)
+  (** through [b] itself *)
   Goal b (elem cb) z y -> elem cb x y.
+    intro h.
+    accumulate acc.
+  Abort.
+
+  (** under a quantifier *)
+  Goal (forall n, ba (elem cb) n n) -> elem cb x y.
+    intro h.
+    accumulate acc.
+  Abort.
+
+  (** nested applications compose into a single monotone function *)
+  Goal (forall n, ba (ba (elem cb)) n n) -> elem cb x y.
+    intro h.
+    accumulate acc.
+  Abort.
+
+  Goal ba (b (elem cb)) z y -> elem cb x y.
+    intro h.
+    accumulate acc.
+  Abort.
+
+  (** a hypothesis must be uniform: all its leaves apply the same function to
+      the candidate for technical reasons of reification. 
+      but this is not needed for cases like this, and we 
+      may be able to do better. *)
+  Goal elem cb z y /\ ba (elem cb) x y -> elem cb x y.
     intro h.
     Fail accumulate acc.
   Abort.
 
-  (** for comparison, a hypothesis directly about the candidate is fine *)
+  Goal elem cb z y /\ ba (gfp b) x y -> elem cb x y.
+    intro h.
+    Fail accumulate acc.
+  Abort.
+
+  (** splitting the conjunction into separate hypotheses lifts the restriction:
+      each one becomes its own [Ts] entry, with its own function *)
+  Goal elem cb z y -> ba (elem cb) x y -> elem cb x y.
+    intros h1 h2.
+    accumulate acc.
+  Abort.
+
+  (** and a hypothesis not mentioning the candidate is never reverted at all *)
+  Goal elem cb z y -> ba (gfp b) x y -> elem cb x y.
+    intros h1 h2.
+    accumulate acc.
+  Abort.
+
+  (** a hypothesis directly about the candidate still works *)
   Goal elem cb z y -> elem cb x y.
     intro h.
     accumulate acc.
+  Abort.
+
+  (** the conclusion itself may not be about a function of the candidate *)
+  Goal elem cb z y -> b (elem cb) x y.
+    intro h.
+    Fail accumulate acc.
   Abort.
 
 End accumulate_body.

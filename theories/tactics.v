@@ -143,6 +143,25 @@ Module reification.
    | abs _ _ => fun x => forall b, pT R (x b)
    | cnj _ _ => fun xy => let (x,y) := xy in pT R x /\ pT R y
    end.
+
+Instance pT_mono {A c} : Proper (leq ==> leq) (@pT A c). 
+Proof. 
+  induction c; unfold Proper, respectful. 
+  all: intros R1 R2 Hleq RfT HpT. 
+  all: 
+  cbn in RfT; cbn in HpT; cbn. 
+  - induction A.
+    all: cbn; cbn in HpT. 
+    + now apply Hleq. 
+    + destruct RfT. eapply H; eauto. 
+  - intro b. eapply H; eauto. 
+  - destruct RfT. split; destruct HpT. 
+    + eapply IHc1; eauto.
+    + eapply IHc2; eauto. 
+Qed. 
+
+(* Corollary pT_b {A c} R1 R2 (b : mon (REL A)) x (Hle : R1 <= R2) (HpT : pT R1 x) : @pT A c (b R2) x. 
+Proof.  *)
  
  Fixpoint rT [A c]: fT A c -> REL A := 
    match c with
@@ -241,39 +260,68 @@ Module reification.
   *)
  Inductive Ts A :=
  | tnil
- | tcons [c] (x: fT A c) (Q: Ts A).
+ | tcons (b : mon (REL A)) [c] (x: fT A c) (Q: Ts A).
+
  (** semantics of [Ts], as hypotheses  *)
  Fixpoint pTs A (cs: Ts A) (R: REL A) (P: Prop): Prop :=
    match cs with
    | tnil _ => P
-   | tcons x cs => pT R x -> pTs cs R P
+   | tcons b x cs => pT (b R) x -> pTs cs R P
    end.
- Fixpoint merge A (cs: Ts A): REL A :=
+
+  Fixpoint qTs A (cs: Ts A) (R : REL A) : Prop := 
+    match cs with 
+    | tnil _ => True 
+    | tcons b x cs => pT (b R) x /\ qTs cs R 
+    end. 
+
+  Instance qTs_mono {A cs} : Proper (leq ==> leq) (@qTs A cs).
+  Proof. 
+   induction cs; intros R1 R2 Hleq HqTs. 
+   all: cbn in *. 
+   - tauto. 
+   - split. 
+   (* by monotonicity of b *)
+    + assert (Hb : b R1 <= b R2) by now apply b. 
+      eapply pT_mono; [apply Hb | tauto]. 
+    + eapply IHcs; [apply Hleq | tauto]. 
+  Qed. 
+
+ (* Fixpoint merge A (cs: Ts A): REL A :=
    match cs with
    | tnil _ => bot
-   | tcons x cs => cup (rT x) (merge cs)
-   end.
+   | tcons _ x cs => cup (rT x) (merge cs)
+   end. *)
+       
  (** key lemma about the above functions  *)
- Lemma eTs A (cs: Ts A) R P: pTs cs R P <-> (merge cs <= R -> P).
+ Lemma eTs A (cs: Ts A) R P: pTs cs R P <-> (qTs cs R -> P).
  Proof.
    induction cs.
-   - split. trivial. intro H; apply H. apply leq_bx.
-   - simpl pTs. simpl merge. rewrite cup_spec, IHcs, eT. tauto.
+   - split; cbn. tauto. intro H; now apply H.
+   - cbn. rewrite IHcs, eT. 
+    split; intro H. 
+    + intro HR. apply H; try intuition.
+    + intros HR HqT. apply H; intuition. 
  Qed.
+
  (** in order to add the current goal as an hypothesis *at the end of the goal*, 
      we need an operation to insert it *at the end of a list* *)
  Fixpoint tsnoc [A] cs [c] (x: fT A c) :=
    match cs with
-   | tnil _ => tcons x (tnil A)
-   | tcons x' cs => tcons x' (tsnoc cs x)
+   | tnil _ => tcons id x (tnil A)
+   | tcons b x' cs => tcons b x' (tsnoc cs x)
    end.
- Lemma merge_tsnoc A cs c x: merge (@tsnoc A cs c x) == merge (tcons x cs).
+
+ Lemma qTs_tsnoc A R c cs x: qTs (@tsnoc A cs c x) R <-> (qTs cs R /\ @pT A c R x).
  Proof.
-   induction cs.
-   - reflexivity.
-   - simpl tsnoc. simpl merge.
-     rewrite IHcs. simpl merge. now rewrite cupA, (cupC (rT _)), <-cupA.
+   induction cs; cbn. 
+   - intuition.
+   - rewrite IHcs. intuition. 
  Qed.
+
+ (* monotonicity of pTs, by induction on cs *)
+
+
 
  (** reformulation of the relativised tower induction lemma using reified terms
      this is the lemma which is applied in tactic [accumulate] *)
@@ -282,12 +330,12 @@ Module reification.
      (forall R: Chain b, pTs cs `R (pT `R x)).
  Proof.
    setoid_rewrite eTs.
-   setoid_rewrite merge_tsnoc.
+   setoid_rewrite qTs_tsnoc.
    intro H.
    refine (ptower _ (inf_closed_pT _ _ _) _). 
    intros R HR Hyps. apply H; trivial.
-   cbn; apply cup_spec. now rewrite <-eT.
- Qed.
+   intuition. 
+ Qed. 
 
  (** ** tools for the [symmetric] tactic *)
 
@@ -353,6 +401,8 @@ Register reification.abs         as coinduction.abs.
 Register reification.cnj         as coinduction.cnj.
 Register reification.fT          as coinduction.fT.
 Register reification.pT          as coinduction.pT.
+Register id                      as coinduction.id.
+Register comp                    as coinduction.comp.
 Register reification.tnil        as coinduction.tnil.
 Register reification.tcons       as coinduction.tcons.
 Register reification.ptower      as coinduction.ptower.
@@ -388,6 +438,8 @@ Declare ML Module "rocq-coinduction.plugin".
     - to `change' the new goal to get rid of the reified operations and get back to a goal resembling the initial one
     (The last step could be implemented with [simpl reification.pT], but this would result in unwanted additional simplifications, and this resets names of bound variables in a very bad way. This is why we spend time in OCaml to reconstruct a type for the new goal by following syntactically the initial one.)
   *)
+
+  
 (** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
     conclusion of the goal: those appearing in the hypotheses must be left
     alone, since the reified syntax cannot represent a candidate occurring on
