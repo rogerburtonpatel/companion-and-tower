@@ -132,7 +132,7 @@ Lemma f_below_w (f : [X ⇒ X])
   (Ha : r_evolution p a f f) :    (* aev_weak : f ↝[b1 # b2] f *)
   f <= w.
 Proof.
-  cut ((bot, f) <= compan); [intuition|].
+  cut ((bot, f) <= compan); [intuition|]. apply H. 
   apply compat_below_compan. split; split.
   - constructor; intros R S _; unfold progress_mon; apply leq_bx.  (* bot ↝[b1] bot *)
   - exact Hp.

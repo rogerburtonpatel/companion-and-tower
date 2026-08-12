@@ -89,8 +89,8 @@ let apply rname mode goal =
   let env = Tacmach.pf_env goal in
   let sigma = Tacmach.project goal in
   let debug c = ignore (Feedback.msg_warning (Printer.pr_leconstr_env env sigma c)) in
-  let convertible = Reductionops.is_conv env sigma in
   let _ = debug in
+  let convertible = Reductionops.is_conv env sigma in
   let rconstr = mkVar rname in
   let _,rtype = Typing.type_of env sigma rconstr in  
   let (s,l,b) = match kind sigma rtype with
@@ -275,8 +275,8 @@ let apply rname mode goal =
      let (cs,c,x,g) = parse_acc i env (Tacmach.pf_concl goal) in
      (* here we first revert R and re-introduce it afterwards in order to keep the same name for the candidate.
         we do so in OCaml rather than in Ltac: this makes it possible to avoid the mess with de Bruijn indices *)
-     debug (Cnd.ptower a b cs c x);
-     debug g;
+     (* debug (Cnd.ptower a b cs c x); *)
+     (* debug g; *)
      tclTHEN (Generalize.revert [rname])
        (tclTHEN (typecheck_and_apply (Cnd.ptower a b cs c x))
           (tclTHEN (Tactics.introduction rname)

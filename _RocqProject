@@ -9,6 +9,7 @@ theories/lattice.v
 theories/progress.v
 theories/evolution.v
 theories/tower.v
+theories/infclosed.v
 theories/companion.v
 theories/diacritical_companion.v
 theories/higherorder.v
@@ -26,6 +27,8 @@ theories/eqit_sandbox.v
 theories/diacritical_redesign.v
 theories/bugfixes.v
 theories/all.v
+theories/difftest.v
+theories/tests_new.v
 
 src/reification.ml
 src/reification.mli

@@ -55,7 +55,8 @@ Section s.
   Goal forall n m, gfp b' n m.
   Proof.
     coinduction R H.
-    symmetric.
+    (* here *)
+    symmetric. 
   Abort.  
   Goal forall n m, gfp b' (n+m) (m+n).
   Proof.

@@ -492,7 +492,7 @@ Proof. intros f g fg x y xy. transitivity (f y). now apply f. now apply fg. Qed.
 #[export] Instance app_weq {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
  Proper (weq ==> weq ==> weq) (@body X Y _ _) := op_leq_weq_2.
 
-(** If X and Y are members of a complete lattice, so is (X, Y) *)
+(** If X and Y are members of a complete lattice, so is X * Y. *)
 Section product. 
 Context {X Y : Type}.
 Context {CLX : CompleteLattice X} {CLY : CompleteLattice Y}.
@@ -538,7 +538,7 @@ Definition snd_mon : [X * Y ⇒ Y] :=
   |}.
 
 End product.
-
+(* TODO: make these instances *)
 Add Parametric Morphism (X Y : Type)
   (LX : CompleteLattice X) (LY : CompleteLattice Y) : (@fst X Y) with
   signature leq ++> leq

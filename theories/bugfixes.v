@@ -22,7 +22,6 @@ Goal gfp b 0 0 -> gfp b 1 1.
   apply gfp_prop.
   intro x.
   apply tower. 
-  Set Debug "backtrace".
     Fail apply_ptower x 0. 
 Abort.
   (* TODO: make this work:  *)
@@ -116,3 +115,35 @@ Section accumulate_body.
   Abort.
 
 End accumulate_body.
+
+
+(* TO FIX *)
+Require Import infclosed. 
+
+
+(* #1: Confusing behavior with coersions *)
+Goal forall (b : mon (nat -> nat -> Prop)) (c : Chain b), 
+elem c 4 5 -> elem c 5 6. 
+Fail tower induction. (* correct, [c] is not introduced yet *)
+intros b c.
+tower induction.  
+
+intros CIH Hb. 
+(* Here we can clearly see the goal is [b `c 5 6]. *)
+(* but matching on the exact goal we see does not work. *)
+Fail lazymatch goal with 
+| |- b `c 5 6 => idtac "found b"
+end.
+Set Printing All. 
+(* Indeed, this is because of the [body] coersion of [b].
+   [Set Printing All] shows us the culprit, but it is still confusing, 
+   and it makes it hard to write and debug tactics.  *)
+lazymatch goal with 
+| |- @body _ _ _ _ _ _ _ _ => idtac "found b"
+end.
+Abort. 
+
+(* bigger issues *)
+(* mixed fixpoints *)
+(* monotonicity of nested/composed monotone functions *)
+(* diacritical support *)

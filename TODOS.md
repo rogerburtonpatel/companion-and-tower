@@ -8,11 +8,24 @@ Progress X X -> Progress X X -> X.
 - [x] gfp in premise bug
 - [ ] apply_ptower (auto inf closed) for tower induction.
 - [ ] Reflexive_chain failing when elem has arguments.
-- [ ] accumulate unsupported subterm 
-- [ ] accumulate no such chain
+- [x] accumulate unsupported subterm 
+- [x] accumulate no such chain
 - [ ] better stepping. 
 - [ ] Damien: use preorder library. 
 
+
+CHANGELOG 
+- fixed gfp in premise bug, which was an ocaml recognition error solved
+  by reverting and introducing gfp-based hypotheses. 
+- fixed accumulate not working when premises were of a certain shape
+  (`f (elem c)` for any `f`. )
+- rewrote plugin infra in ltac, deprecating ocaml. includes infrastructure 
+  for automatic dispatch of inf_closed goals. 
+- used infra to rewrite coinduction and accumulate tactics
+- NEXT: used infra to rewrite symmetric tactic 
+- NEXT: inf_closed dispatch for automatic tower induction proofs. 
+- NEXT: better step 
+- NEXT: active-step support 
 
 ## Basics
 - [x] Port lattice (trivial)
