@@ -609,3 +609,38 @@ Section involutions.
  Qed.
 End involutions.
 Arguments Involution {_ _} _.
+
+(** ** structural lemmas for monotonicity *)
+
+Lemma all_mono {X} {L: CompleteLattice X} A (P: A -> X -> Prop):
+  (forall a, Proper (leq ==> leq) (P a)) ->
+  Proper (leq ==> leq) (fun x => forall a, P a x).
+Proof. intros H x y xy Hx a. now apply (H a x y xy). Qed.
+
+Lemma and_mono {X} {L: CompleteLattice X} (P Q: X -> Prop):
+  Proper (leq ==> leq) P -> Proper (leq ==> leq) Q ->
+  Proper (leq ==> leq) (fun x => P x /\ Q x).
+Proof.
+  intros HP HQ x y xy []. split.
+  now apply (HP x y xy). now apply (HQ x y xy).
+Qed.
+
+(** through a monotone function applied to the candidate, as in [b R u v] *)
+Lemma body_mono {X} {L: CompleteLattice X} (b: mon X) (P: X -> Prop):
+  Proper (leq ==> leq) P -> Proper (leq ==> leq) (fun x => P (b x)).
+Proof. intros HP x y xy. apply HP. now apply b. Qed.
+
+(* tactics *)
+
+(* the [mon] database is created here so that [monauto] is usable from files
+   that do not depend on [infclosed]; [infclosed] populates it. *)
+Create HintDb mon discriminated.
+#[export] Hint Resolve all_mono and_mono body_mono : mon.
+#[export] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
+
+#[export] Hint Extern 2 (Proper (leq ==> leq) _) =>
+  (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
+
+Ltac monauto :=
+  solve [auto 20 with mon] ||
+   fail "`monauto` could not solve this goal.". 
