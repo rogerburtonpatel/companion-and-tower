@@ -632,14 +632,39 @@ Proof. intros HP x y xy. apply HP. now apply b. Qed.
 
 (* tactics *)
 
-(* the [mon] database is created here so that [monauto] is usable from files
-   that do not depend on [infclosed]; [infclosed] populates it. *)
+(* the [mon] database TODO DOCUMENT. *)
 Create HintDb mon discriminated.
 #[export] Hint Resolve all_mono and_mono body_mono : mon.
 #[export] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
 
 #[export] Hint Extern 2 (Proper (leq ==> leq) _) =>
   (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
+
+(* todo make this bound less of a hack *)
+(* this catches a particular corner case which is relevant in the study of
+   active-only up-to techniques. 
+
+   the corner case is a hypothesis in which the candidate sits under a monotone
+   function it is not the chain of, as in [ba (elem c) u v] with [c : Chain b].
+   that predicate is indeed monotone in the candidate, but [auto] cannot see it
+   because using [body_mono] would mean reading [fun w => ba w u v] as [fun w =>
+   Q (ba w)], and there is no first-order way to guess [Q]. so we peel the
+   arguments off, then walk back out through each monotone function in turn
+   using its own [Hbody]. we use [match] rather than [lazymatch] so nesting like
+   [ba (b w)] can backtrack onto the inner function first. the bound stops the
+   wrapping from looping. *)
+Ltac mon_lift H n :=
+  first [ solve [assumption | apply H; assumption]
+        | lazymatch n with
+          | S ?m =>
+              match goal with
+              | |- context [@body _ _ _ _ ?b _] => mon_lift (Hbody b _ _ H) m
+              end
+          end ].
+
+#[export] Hint Extern 4 (Proper (leq ==> leq) _) =>
+  (solve [ repeat intro;
+           lazymatch goal with H : _ <= _ |- _ => mon_lift H 4 end ]) : mon.
 
 Ltac monauto :=
   solve [auto 20 with mon] ||

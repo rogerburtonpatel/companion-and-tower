@@ -15,402 +15,6 @@ we provide three tactics:
 *)
 
 
-Require Import lattice tower rel.
-Import CoindNotations.
-Set Implicit Arguments.
-
-(** * Arities and relations *)
-(** we call 'relations' elements whose type is of the shape
-    - [X1 -> X2 -> ... -> Xn -> Prop]
-    - or more generally, [forall x1: X1, forall x2: X2, ..., Xn -> Prop]
-    those are reified via the definition [REL] below, using "arities" of the shape
-    - [ABS X1 (fun _ => ABS X2 (fun _ => ... (ABS Xn (fun _ => PRP))))]
-    - [ABS X1 (fun x1 => ABS X2 (fun x2 => ... (ABS Xn (fun _ => PRP))))]
- *)
-
-(** (dependent) arities *)
-Inductive Arity :=
-| PRP
-| ABS(B: Type)(Q: B -> Arity).
-Arguments ABS _ _: clear implicits.
-(** non-dependent case *)
-Notation ABS' B Q := (ABS B (fun _ => Q)).
-
-(** Rocq corresponding relation types,
-    the [K] argument of [REL'] is mostly instantiated with [Prop], as in [REL] below *)
-Fixpoint REL' A K :=
-  match A with
-  | PRP => K
-  | ABS B Q => forall b, REL' (Q b) K
-  end.
-Notation REL A := (REL' A Prop).
-
-(** corresponding complete lattice structure *)
-#[local] Instance CompleteLatticeREL A: CompleteLattice (REL A).
-Proof.
-  revert A. fix f 1; destruct A; simpl.
-  apply CompleteLattice_Prop.  
-  apply CompleteLattice_dfun; auto.
-Defined.
-
-(** (dependent) product type corresponding to the given arity, for curried operations *)
-Fixpoint PRD A: Type :=
-  match A with
-  | PRP => unit
-  | ABS B Q => sigT (fun b => PRD (Q b))
-  end.
-
-(** currying *)
-Fixpoint curry [A K]: REL' A K -> PRD A -> K :=
-  match A with
-  | PRP => fun R _ => R
-  | ABS B Q => fun R x => let (b,q) := x in curry (R b) q
-  end.
-
-(** uncurrying *)
-Fixpoint uncurry [A K]: (PRD A -> K) -> REL' A K :=
-  match A with
-  | PRP => fun k => k tt
-  | ABS B Q => fun k x => uncurry (fun p => k (existT _ x p))
-  end.
-
-(* note: the two lemmas below could be generalised to [REL'] *)
-Lemma curryK [A] (R: REL A): uncurry (curry R) == R.
-Proof.
-  induction A; cbn.
-  - reflexivity. 
-  - intro b. apply H. 
-Qed.
-
-Lemma uncurry_leq [A] (h k: PRD A -> Prop): uncurry h <= uncurry k <-> h <= k.
-Proof.
-  induction A; cbn.
-  - split. now intros ? []. now intro.
-  - split.
-    -- intros H' [b q]. 
-       apply (H b (fun q => h (existT _ b q)) (fun q => k (existT _ b q))). apply H'.
-    -- intros H' b. apply H. intro q. apply H'. 
-Qed.
-
-(** helper for the OCaml plugin: [prd A] produces tuples for arity [A] *)
-Definition tuple A: REL' A (PRD A) := uncurry (fun x => x).
-
-(** singleton relation *)
-Definition EQ {A} (p: PRD A): REL A := uncurry (eq p). 
-
-Lemma EQ_spec A (T: REL A) x: EQ x <= T <-> curry T x.
-Proof.
-  unfold EQ. 
-  rewrite <-(curryK T) at 1.
-  rewrite uncurry_leq. split.
-  intros H. now apply H.
-  now intros ? ? <-.
-Qed.
-
-
-(** * reification tools to transform propositions in the language of
-      gallina into relation containments, e.g.,
-
-      [forall x y: X, R (x+y) (y+x+x)]
-      becomes 
-      [{(x+y, y+x+x) | x,y\in X } <= R]
-
-      [forall x y: X, R (x+y) y /\ R x y]
-      becomes 
-      [{(x+y, y) | x,y: X } \cup {(x, y) | x,y: X } <= R]
-
-*)
-Module reification.
-
- (** dependently typed syntax for formulas of the shape
-     forall x y, R t1 t2 /\ forall z, R s1 s2 *)
- Inductive T :=
- | hol
- | abs(B: Type)(Q: B -> T)
- | cnj(H K: T).
- Arguments abs _ _: clear implicits. 
-
- Fixpoint fT A c :=
-   match c with
-   | hol => PRD A
-   | abs B Q => forall b: B, fT A (Q b)
-   | cnj H K => (fT A H * fT A K)%type
-   end.
-
- Fixpoint pT [A c] (R: REL A): fT A c -> Prop :=
-   match c with
-   | hol => curry R
-   | abs _ _ => fun x => forall b, pT R (x b)
-   | cnj _ _ => fun xy => let (x,y) := xy in pT R x /\ pT R y
-   end.
-
-Instance pT_mono {A c} : Proper (leq ==> leq) (@pT A c). 
-Proof. 
-  induction c; unfold Proper, respectful. 
-  all: intros R1 R2 Hleq RfT HpT. 
-  all: 
-  cbn in RfT; cbn in HpT; cbn. 
-  - induction A.
-    all: cbn; cbn in HpT. 
-    + now apply Hleq. 
-    + destruct RfT. eapply H; eauto. 
-  - intro b. eapply H; eauto. 
-  - destruct RfT. split; destruct HpT. 
-    + eapply IHc1; eauto.
-    + eapply IHc2; eauto. 
-Qed. 
-
-(* Corollary pT_b {A c} R1 R2 (b : mon (REL A)) x (Hle : R1 <= R2) (HpT : pT R1 x) : @pT A c (b R2) x. 
-Proof.  *)
- 
- Fixpoint rT [A c]: fT A c -> REL A := 
-   match c with
-   | hol => EQ
-   | abs _ _ => fun z => sup' top (fun b => rT (z b))
-   | cnj _ _ => fun z => let (x,y) := z in cup (rT x) (rT y)
-   end.
- 
- (** key property of the above functions *)  
- Proposition eT A c R (x: fT A c): pT R x <-> rT x <= R.
- Proof.
-   induction c; cbn; symmetry.
-   - apply EQ_spec.
-   - setoid_rewrite H. rewrite sup_spec. firstorder. 
-   - destruct x. rewrite IHc1, IHc2. apply cup_spec.
- Qed. 
-
- (* examples on how to use eT/pT *)
- (*
- Goal forall R: relation nat, forall x y, R (x+y) (y+x+x).
-   intro R.
-   change (let A := (ABS' nat (ABS' nat PRP)) in @pT A
-               (abs _ (fun x => abs _ (fun y => hol))) R
-               (fun x y => tuple A (x+y) (y+x+x))).
- Abort.
-
- Goal forall R: relation nat, forall x y, R (x+y) y /\ R x y.
-   intro R.
-   change (let A := (ABS' nat (ABS' nat PRP)) in @pT A
-               (abs _ (fun x => abs _ (fun y => cnj hol hol))) R
-               (fun x y => (tuple A (x+y) y, tuple A x y))).
- Abort.
-
- Goal forall R: relation nat, forall x y, R (x+y) y /\ R x y.
-   intro R.
-   change (let A := (ABS' nat (ABS' nat PRP)) in @pT A
-              (abs _ (fun x => abs _ (fun y => cnj hol hol))) R
-              (fun x y => (tuple A (x+y) y, tuple A x y))).
-   apply (eT (ABS' nat (ABS' nat PRP))
-             (abs _ (fun x => abs _ (fun y => cnj hol hol)))).
-   Restart.
-   intro R.
-   apply (let A := (ABS' nat (ABS' nat PRP)) in @eT A
-             (abs _ (fun x => abs _ (fun y => cnj hol hol)))
-             R
-             (fun x y => (tuple A (x+y) y, tuple A x y))).
- Abort.
- *)
- 
- (** ** tools for the [coinduction] tactic *)
-
- (**  *)
- Lemma inf_closed_pT A c (x: fT A c): inf_closed (fun y => pT y x).
- Proof.
-   intros T HT. 
-   rewrite eT. apply inf_spec. intros R TR.
-   rewrite <-eT. apply HT, TR.
- Qed.
-   
- (** reformulation of the tower induction lemma using reified terms
-     for the tactic [coinduction]
-     not used in practice, it is subsumed by Proposition [ptower] below *)
- Proposition tower A c (b: mon (REL A)) (x: fT A c):
-     (forall R: Chain b, pT `R x -> pT (b `R) x) -> 
-     (pT (gfp b) x).
- Proof.
-   intro H.
-   cut (forall R: Chain b, pT `R x). intros E. apply E. 
-   apply (tower (inf_closed_pT _ _ x)). apply H.
- Qed.
-
- (* idea: the above lemma can be used as follows: *)
-(*  
- Section s.
-  Variable b: mon (nat -> nat -> Prop).
-  Goal forall n m (k: n=m), gfp b (n+n) (m+m) /\ forall k, gfp b (n+k) (k+m).
-    apply (let A := ABS' nat (ABS' nat PRP) in
-           tower A
-            (abs nat (fun n =>
-             abs nat (fun m => 
-             abs (n=m) (fun _ => 
-                          cnj hol (abs nat (fun _ => hol))))))
-            ((fun n m _ => (tuple A (n+n) (m+m), fun k => tuple A (n+k) (k+m))))
-          ).
-    simpl pT.
-    intros R HR. 
-  Abort.
- End s. *)
- 
- 
- (** ** tools for the [accumulate] tactic *)
-
- (** in order to implement the accumulation rule, 
-     we also need to record the existing assumptions about the current candidate 
-     we do so using "lists of [T]s" ([Ts]), which we can later merge into a single relation
-  *)
- Inductive Ts A :=
- | tnil
- | tcons (b : mon (REL A)) [c] (x: fT A c) (Q: Ts A).
-
- (** semantics of [Ts], as hypotheses  *)
- Fixpoint pTs A (cs: Ts A) (R: REL A) (P: Prop): Prop :=
-   match cs with
-   | tnil _ => P
-   | tcons b x cs => pT (b R) x -> pTs cs R P
-   end.
-
-  Fixpoint qTs A (cs: Ts A) (R : REL A) : Prop := 
-    match cs with 
-    | tnil _ => True 
-    | tcons b x cs => pT (b R) x /\ qTs cs R 
-    end. 
-
-  Instance qTs_mono {A cs} : Proper (leq ==> leq) (@qTs A cs).
-  Proof. 
-   induction cs; intros R1 R2 Hleq HqTs. 
-   all: cbn in *. 
-   - tauto. 
-   - split. 
-   (* by monotonicity of b *)
-    + assert (Hb : b R1 <= b R2) by now apply b. 
-      eapply pT_mono; [apply Hb | tauto]. 
-    + eapply IHcs; [apply Hleq | tauto]. 
-  Qed. 
-
- (* Fixpoint merge A (cs: Ts A): REL A :=
-   match cs with
-   | tnil _ => bot
-   | tcons _ x cs => cup (rT x) (merge cs)
-   end. *)
-       
- (** key lemma about the above functions  *)
- Lemma eTs A (cs: Ts A) R P: pTs cs R P <-> (qTs cs R -> P).
- Proof.
-   induction cs.
-   - split; cbn. tauto. intro H; now apply H.
-   - cbn. rewrite IHcs, eT. 
-    split; intro H. 
-    + intro HR. apply H; try intuition.
-    + intros HR HqT. apply H; intuition. 
- Qed.
-
- (** in order to add the current goal as an hypothesis *at the end of the goal*, 
-     we need an operation to insert it *at the end of a list* *)
- Fixpoint tsnoc [A] cs [c] (x: fT A c) :=
-   match cs with
-   | tnil _ => tcons id x (tnil A)
-   | tcons b x' cs => tcons b x' (tsnoc cs x)
-   end.
-
- Lemma qTs_tsnoc A R c cs x: qTs (@tsnoc A cs c x) R <-> (qTs cs R /\ @pT A c R x).
- Proof.
-   induction cs; cbn. 
-   - intuition.
-   - rewrite IHcs. intuition. 
- Qed.
-
- (* monotonicity of pTs, by induction on cs *)
-
-
-
- (** reformulation of the relativised tower induction lemma using reified terms
-     this is the lemma which is applied in tactic [accumulate] *)
- Proposition ptower A (b: mon (REL A)) cs c (x: fT A c):
-     (forall R: Chain b, pTs (tsnoc cs x) `R (pT (b `R) x)) ->
-     (forall R: Chain b, pTs cs `R (pT `R x)).
- Proof.
-   setoid_rewrite eTs.
-   setoid_rewrite qTs_tsnoc.
-   intro H.
-   refine (ptower _ (inf_closed_pT _ _ _) _). 
-   intros R HR Hyps. apply H; trivial.
-   intuition. 
- Qed. 
-
- (** ** tools for the [symmetric] tactic *)
-
- Section sym.
-   Variable A: Type.
-   Let A2 := ABS A (fun _ => ABS A (fun _ => PRP)).
-
-   (** converse operation on [fT] *)
-   Fixpoint converse_fT [c]: fT A2 c -> fT A2 c :=
-     match c with
-     | hol => fun z => let 'existT _ x (existT _ y _) := z in tuple A2 y x
-     | abs _ _ => fun x b => (converse_fT (x b))
-     | cnj _ _ => fun z => let (x,y) := z in (converse_fT x,converse_fT y)
-     end.
-
-   Lemma existT_nodep_eq (a b: A) T (x y: T):
-     existT (fun _ => T) a x = existT (fun _ => T) b y <->  a = b /\ x = y.
-   Proof. split. intro H. inversion H. tauto. intuition congruence. Qed.
-
-   Lemma converse_rT c (x: fT A2 c): converse (rT x) == rT (converse_fT x).
-   Proof.
-     induction c; simpl rT; intros i j. 
-     - destruct x as (x,(y,[])). cbn.
-       rewrite 4existT_nodep_eq. tauto. 
-     - etransitivity. apply converse_sup. refine (sup_weq _ _).
-       reflexivity. intros b. apply H.
-     - destruct x. etransitivity. apply converse_cup.
-       apply (@cup_weq _ _ _ _ (IHc1 _) _ _ (IHc2 _)).
-   Qed.
- 
-   (** reformulation of the symmetry lemma using reified terms
-       this is the lemma which is applied in tactic [symmetric]
-    *)
-   Lemma by_symmetry c (x: fT A2 c) {b s: mon (A -> A -> Prop)} {S: Symmetrical converse b s} (R: Chain b):
-     (* alternative to the hypothesis below: *)
-     (* (forall i j, rT x j i -> rT x i j) -> *)
-     (forall R, @pT A2 c R x -> @pT A2 c R (converse_fT x)) ->
-     @pT A2 c (s `R) x ->
-     @pT A2 c (b `R) x.
-   Proof.
-     rewrite 2!eT. intros C H. rewrite symmetrical_chain.
-     apply cap_spec. split; trivial.
-     apply switch. rewrite (converse_rT _ x), <-eT.
-     apply C. now rewrite eT. 
-   Qed.
- End sym.
- 
-End reification.
-
-(** * Exported tactics *)
-
-(** registering constants required in the OCaml plugin  *)
-Register body                    as coinduction.body.
-Register elem                    as coinduction.elem.
-Register Chain                   as coinduction.Chain.
-Register gfp                     as coinduction.gfp.
-Register Symmetrical             as coinduction.Symmetrical.
-Register PRP                     as coinduction.PRP.
-Register ABS                     as coinduction.ABS.
-Register tuple                   as coinduction.tuple.
-Register reification.hol         as coinduction.hol.
-Register reification.abs         as coinduction.abs.
-Register reification.cnj         as coinduction.cnj.
-Register reification.fT          as coinduction.fT.
-Register reification.pT          as coinduction.pT.
-Register id                      as coinduction.id.
-Register comp                    as coinduction.comp.
-Register reification.tnil        as coinduction.tnil.
-Register reification.tcons       as coinduction.tcons.
-Register reification.ptower      as coinduction.ptower.
-Register reification.by_symmetry as coinduction.by_symmetry.
-
-(** loading the OCaml plugin  *)
-Declare ML Module "rocq-coinduction.plugin". 
-
 (** ** starting a proof by (enhanced) coinduction *)
 (** when the goal is of the shape
 
@@ -432,35 +36,19 @@ Declare ML Module "rocq-coinduction.plugin".
     Note the move to [b `R] in the conclusion: now we should play at least one step of the coinductive game for all pairs inserted in the candidate.
     Also note that [H] may be an introduction pattern.
  *)
-(** we use the OCaml-defined [apply_ptower] tactic, whose role is:
-    - to parse the goal to recognise a bisimulation candidate
-    - to `apply' [reification.ptower] with reified arguments corresponding to that candidate
-    - to `change' the new goal to get rid of the reified operations and get back to a goal resembling the initial one
-    (The last step could be implemented with [simpl reification.pT], but this would result in unwanted additional simplifications, and this resets names of bound variables in a very bad way. This is why we spend time in OCaml to reconstruct a type for the new goal by following syntactically the initial one.)
-  *)
 
-  
-(** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
-    conclusion of the goal: those appearing in the hypotheses must be left
-    alone, since the reified syntax cannot represent a candidate occurring on
-    the left of an arrow.
-    We thus strip the leading telescope into the context before applying
-    [gfp_prop], and revert it once [R] has been introduced, so that [R] ends up
-    outside and the hypotheses inside, as [apply_ptower] expects.
-    [intro] (rather than [intro h] on a fresh [h]) is used in order to preserve
-    the names of the bound variables. *)
-Ltac gfp_intro R :=
-  lazymatch goal with
-  | |- forall _ : _, _ =>
-      intro;
-      lazymatch goal with
-      | h: _ |- _ => gfp_intro R; revert h
-      end
-  | |- _ => apply gfp_prop; intro R
-  end.
 
-Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
-  gfp_intro R; apply_ptower R O; intros H.
+(** * Automatically discharge [inf_closed] side conditions
+
+    [tower] requires [inf_closed P] for the predicate [P] one reasons about.
+    Rather than reifying the goal so that [P] always has a fixed shape, we
+    observe that inf-closedness is compositional over the syntax of [P], and let
+    [auto] follow that syntax.
+
+    In particular the base case, aka the goal mentioning the candidate applied
+    to arguments, needs no particular lemmas at any arity, because after peeling
+    the arguments the goal is exactly the hypothesis.
+ *)
 
 (** ** accumulating knowledge in a proof by enhanced coinduction *)
 
@@ -489,27 +77,6 @@ Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
     Like for [coinduction], [H''] maybe an introduction pattern.
  *)
 
-(** the implementation is a bit more involved:
-    - we successively revert all assumptions about this candidate into the conclusion
-    - we use the OCaml tactic [apply_ptower] in order to reify the goal, apply [reification.ptower] with appropriate arguments, and get rid of the reified operations 
-    - then we move the hypotheses back to the context,
-    - and we introduce the new hypothesis
-  *)
-Ltac xaccumulate R n :=
-  lazymatch goal with
-  | H: context[R] |- _ => revert H; xaccumulate R (S n); intro H
-  | _ => apply_ptower R n
-  end.
-
-Tactic Notation "accumulate" hyp(R) simple_intropattern(H) :=
-  xaccumulate R O; intros H; simpl REL in *.
-
-Tactic Notation "accumulate" simple_intropattern(H) :=
-  lazymatch goal with
-  | R: Chain _ |- _ => accumulate R H
-  | _ => fail "could not find the coinductive candidate"
-  end.
-
 (** reasoning on symmetric candidates with symmetric functions *)
 (** this tactic makes it possible to play only half of the coinductive game in cases where both the game and the current goal are symmetric:
     - that the game is symmetric is inferred using the typeclasse [Symmetrical]
@@ -521,23 +88,418 @@ Tactic Notation "accumulate" simple_intropattern(H) :=
     (where [R: Chain b] with [b] the function for the coinductive game, and [s] the function for the `half of [b]')
     conjunctions are also allowed, like in the other tactics)
  *)
-(** as above, we use the OCaml defined tactic [apply_by_symmetry] in order to apply the lemma [reification.by_symmetry] and set the resulting goal back into a user-friendly shape *)
-Ltac default_sym_tac := solve[clear;firstorder]||fail "could not get symmetry automatically".
-Tactic Notation "symmetric" hyp(R) "using" tactic(tac) :=
-  apply_by_symmetry R; [simpl reification.pT; tac|].
-Tactic Notation "symmetric" hyp(R) :=
-  symmetric R using default_sym_tac.
-Tactic Notation "symmetric" "using" tactic(tac) :=
-  lazymatch goal with
-  | R: Chain _ |- _ => symmetric R using tac
-  | _ => fail "could not find the coinductive candidate"
+
+
+
+Require Export lattice tower rel.
+Set Implicit Arguments.
+
+
+Lemma inf_closed_and {X} {L: CompleteLattice X} (P Q: X -> Prop):
+  inf_closed P -> inf_closed Q -> inf_closed (fun x => P x /\ Q x).
+Proof. apply inf_closed_cap. Qed.
+
+
+(** ** the automatic procedure *)
+
+Create HintDb ic discriminated.
+#[export] Hint Resolve inf_closed_all
+                       inf_closed_cap
+                       inf_closed_and
+                       inf_closed_leq
+                       inf_closed_impl : ic.
+
+(** base cases: the candidate applied to arguments. *)
+#[export] Hint Extern 2 (inf_closed _) =>
+  (solve [intros ? ?; assumption]) : ic.
+
+(** [icauto] attempts to solve a goal of the form [inf_closed P] for a
+    predicate P.
+    If it cannot, it reports the shape it got stuck on
+    so that debugging is bearable. *)
+Ltac icauto :=
+  tryif solve [auto 20 with ic mon nocore] then idtac
+  else match goal with
+       | |- inf_closed ?P =>
+         fail 1 "[coinduction] cannot show that this predicate is inf-closed:" P
+       | _ => fail 1 "bug in icauto, please report"
+       end.
+
+(** * Starting a proof by coinduction
+
+    [apply tower] on its own cannot always guess the predicate [P] to induct on,
+    even when there is only one instance of [elem] in the goal as when starting
+    a proof by coinduction. If it guesses a wrong predicate shape which is not
+    inf-closed, the proof will fail.
+
+    The previous reification machinery in [tactics.v] and [reification.ml]
+    solved this by coercing the goal into a custom [pTs] data structure that
+    could always be recognized as an inf-closed predicate and automatically
+    discharging the first obligation that way. This can be done in Rocq, but
+    recovering the original goal from the data structure resulted in the loss of
+    the original bound names. Thus the library used an OCaml plugin to recover
+    the names.
+
+    But a simpler, Rocq-native solution is desirable: it is more easily
+    debuggable, and more durable. Several bugs in the OCaml plugin led to
+    confusing error messages or unpredictable behavior, most notably the
+    inability to perform coinduction on a goal of the form
+
+    [gfp b x y -> gfb b x y]
+
+    as [gfp]-predicates in hypotheses were rejected, even when valid.
+
+
+    We now present a Rocq-native solution that simplifies the machinery, works
+    in many fewer lines of code, fixes the bugs, and presents more descriptive
+    error messages.
+
+    First, we observe an invariant: proofs by coinduction via tower induction
+    always involve candidates of a single chain. This is because 'membership in
+    the [gfp],' which is the goal of a coinductive proof, is necessarily the
+    conclusion of the proof's type. Proof by tower induction proceeds by first
+    stating the 'membership in the [gfp]' goal as a predicate [P] of _all_
+    elements of the tower using [gfp_prop], and then proceeds by tower
+    induction.
+
+    When using this technique, if the goal only mentions -> and /\, the
+    predicate [P] is always inf-closed, so the first obligation of tower
+    induction can automatically be dispatched.
+
+    TODO explain why. The short of it is that in the lattice of dependent
+    functions into [Prop], logical connectives are inf-closed.
+
+    QUESTION: can we do better? existentials are the curiosity here...
+
+
+
+    Example:
+
+    [Lemma needs_coinduction : forall ... (H: ...), gfp b ....]
+
+    [Lemma does_not_need_coinduction : forall ... (H: gfp b ...), G].
+
+    where [G] is a goal that does not mention [gfp b].
+
+    Proof by coinduction via tower induction restate a goal involving the [gfp]
+    as a property of _all_ elements of the tower using [gfp_prop]:
+
+    forall (x : Chain b), forall ... (H: ...), P (elem x). (* TODO write this a
+    bit more clearly *)
+
+    and then apply [ptower] to prove the property holds of all elements.
+
+    Goal 1: inf_closed P
+    Goal 2: P (elem x) -> P (b (elem x)).
+
+    Because of this, in this particular case, [pattern (elem R)] always performs
+    the necessary abstraction, turning the goal into [?P (elem R)]
+    syntactically. Then the application is first-order, and the inf-closedness
+    of [P] can always be dispatched by a solver for [P] of the form...
+
+    TODO MAKE THIS FORMAL.
+
+    Pous previously formalized this using a custom type that allowed only
+    names, conjunctions, and abstractions. We use a theorem of inf-closedness
+    of firstorder logic.
+
+    TODO: does this exist? We have a series of lemmas for abstraction,
+    conjunction, dependent abstraction, and others. What else can we get?
+
+    Since [P] is then literally the original goal abstracted over the candidate,
+    the names of all bound variables are preserved for free. This deprecates the
+    need for reification machinery, which coerced the goal into a form that
+    could automatically be solved
+
+
+    This is the sole reason the reification machinery exists: reducing [pT]
+    instead would reset those names, because the binder in [pT (abs B Q) x =
+    forall b, ...] comes from the definition of [pT] rather than from the user's
+    goal, turning [forall n m j, ...] into [forall b0 b1 b2,
+    ...].
+
+    The [inf_closed] side condition is discharged by [icauto] above, which
+    simply follows the syntax of [P]. *)
+
+(** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
+    conclusion of the goal: those appearing in hypotheses are to be left alone,
+    so that [coinduction] on [gfp b 5 6 -> gfp b 7 8] keeps the premise as
+    [gfp b 5 6] rather than turning it into a statement about the candidate.
+    We thus strip the leading telescope into the context before applying
+    [gfp_prop], and revert it once [R] has been introduced.
+    [intro] (rather than [intro h] on a fresh [h]) preserves binder names. *)
+(** [gfp_prop] can abstract the [gfp] of only one function, so a conclusion
+    mentioning two of them cannot be a proof by coinduction.  detect that here:
+    otherwise the abstraction silently keeps the other [gfp] and the failure
+    surfaces much later, as an inf-closedness goal that mentions it.
+    [match] rather than [lazymatch] so that both occurrences are enumerated. *)
+Ltac two_candidates :=
+  match goal with
+  | |- context [@gfp ?X ?L ?b1] =>
+      match goal with
+      | |- context [@gfp X L ?b2] => tryif unify b1 b2 then fail else idtac
+      end
   end.
-Tactic Notation "symmetric" :=
+
+Ltac check_one_candidate :=
+  tryif two_candidates then
+    fail "[coinduction] only one coinductive candidate is allowed: this conclusion mentions the gfps of two different functions"
+  else idtac.
+
+Ltac gfp_intro' R :=
   lazymatch goal with
-  | R: Chain _ |- _ => symmetric R
+  | |- forall _ : _, _ =>
+      intro;
+      lazymatch goal with
+      | h: _ |- _ => gfp_intro' R; revert h
+      end
+  | |- _ => check_one_candidate; apply gfp_prop; intro R
+  end.
+
+Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
+  gfp_intro' R; pattern (elem R); revert R;
+  apply tower; [ icauto | intro R; cbn beta; intros H ].
+
+(* Tower induction *)
+
+(* tower induction always leaves the goal with the form `forall _ : Chain, ...` ;
+   match on this type and clear the old Chain *)
+Ltac clear_old_chain := lazymatch goal with
+  | c : (Chain ?b) |- forall _ : (Chain ?b), _ => clear c; intro c end.
+
+Ltac tower_induction_with c :=
+    pattern (elem c);
+    apply tower;
+    [icauto | try clear_old_chain].
+
+Tactic Notation "tower" "induction" "with" ident(c) := tower_induction_with c.
+
+Ltac tower_induction :=
+lazymatch goal with
+  | c : Chain _ |- _ =>
+    (* catch : more than one chain *)
+    (lazymatch goal with
+      (* two chains means we cannot guess the candidate, it must be supplied manually *)
+      | c1 : Chain _, c2 : Chain _ |- _ =>
+        fail 1 "[coinduction]: found more than one chain candidate (found" c1 " and " c2 ")."
+              "Supply the candidate manually using `tower_induction_with [c]`"
+      | _ => tower_induction_with c
+      end)
+  | _ => (* no chain *) fail 1 "[coinduction]: no Chain candidate found. tower induction
+                                reqires a context element of type `Chain _`"
+  end.
+
+Tactic Notation "tower" "induction" := tower_induction.
+
+
+(** * Accumulating, without reification
+
+    To keep both the same chain and the correct hypothesis shapes, accumulation
+    must use [tower.ptower] to separates a monotone hypothesis [Q] from the
+    inf-closed conclusion [P]. In [Q] must be stored each existing hypothesis
+    about [c] (the Chain) so that tower induction does not act upon it and
+    transform it from (elem c) into [b (elem c)].
+
+    As [Q] is a single predicate, the [n] hypotheses about the candidate have to
+    be folded into one conjunction before applying it, and unfolded again
+    afterwards. This is the responsibility of [and_curry]/[and_uncurry].
+    *)
+
+Lemma and_uncurry (A B C: Prop): (A /\ B -> C) -> (A -> B -> C).
+Proof. tauto. Qed.
+Lemma and_curry (A B C: Prop): (A -> B -> C) -> (A /\ B -> C).
+Proof. tauto. Qed.
+
+(** [n] is the number of foldings performed on the way in, i.e. one less than
+            the number of hypotheses about [R]. [ptower] is then applied at [R]
+            directly, and its step goal re-introduces the candidate. the old
+            candidate is unused by this point, since every hypothesis mentioning
+            it has been reverted. *)
+
+(** undo [n] foldings.  the foldings nest to the right, so after splitting the
+        outermost conjunction the next one sits under a binder. We use [refine]
+        rather than [apply], which over-strips. *)
+Ltac uncurry_back n :=
+  lazymatch n with
+  | O => idtac
+  | S ?m =>
+      refine (and_curry _);
+      let h := fresh "h" in intro h; uncurry_back m; revert h
+  end.
+
+Ltac apply_ptower' R n :=
+  pattern (elem R);
+  lazymatch goal with
+  | |- (fun z => @?Q z -> @?P z) _ =>
+      cbn beta;
+      apply (ptower (Q:=Q) (P:=P));
+      [ monauto
+      | icauto
+      | clear R; intro R; cbn beta; uncurry_back n ]
+  | |- _ => fail 1 "[coinduction] no hypothesis about the candidate to accumulate"
+  end.
+
+
+(** revert every hypothesis mentioning [R], folding them into a single
+    conjunction on the way in, and restoring them by their original names on
+    the way out.  [xaccumulate0] handles the first one, which needs no folding. *)
+Ltac xaccumulate1 R n :=
+  lazymatch goal with
+  | H: context[R] |- _ => revert H; refine (and_uncurry _); xaccumulate1 R (S n); intro H
+  | _ => apply_ptower' R n
+  end.
+Ltac xaccumulate0 R :=
+  lazymatch goal with
+  | H: context[R] |- _ => revert H; xaccumulate1 R 0; intro H
+  | _ => apply_ptower' R 0
+  end.
+
+(** [accumulate] adds the conclusion to the candidate, so the conclusion must be
+      built from the candidate itself ([elem c]), and conjunctions and
+      quantifiers of those.  applying a function to it, as in [b (elem c)], is
+      not something that can be assumed. we report that directly rather than
+      letting it surface as a failed inf-closedness goal. a premise may mention
+      the candidate under a function, but the conclusion may not. *)
+Ltac check_accumulate_concl R :=
+  tryif assert_succeeds
+          (repeat lazymatch goal with |- forall _ : _, _ => intro end;
+           lazymatch goal with
+           | |- context [@body _ _ _ _ _ (elem R)] => idtac
+           end)
+  then fail "[coinduction] accumulate expects a conclusion about the candidate itself, as in `elem c u v` (conjunctions and quantifiers are fine); this one applies a function to the candidate"
+  else idtac.
+
+Tactic Notation "accumulate" hyp(R) simple_intropattern(H) :=
+  check_accumulate_concl R; xaccumulate0 R; intros H.
+Tactic Notation "accumulate" simple_intropattern(H) :=
+  lazymatch goal with
+  | R: Chain _ |- _ => accumulate R H
   | _ => fail "could not find the coinductive candidate"
   end.
 
-(** performing a single step 
-    (equivalent to [accumulate _], except that we do not deal with composite candidates and the coinductive proof need not be started) *)
+
+(* symmetry arguments *)
+
+(*
+  symmetric needs to:
+  apply a by_symmetry lemma which creates 3 goals:
+  1 to find [s]
+  1 to prove the 'symmetric shape' of the goal, ideally with names intact
+  1 where [s] replaces [b], with names intact.
+*)
+
+Section s.
+Context {X} {CL : CompleteLattice X}.
+Notation mon_Xrel := (mon (X -> X -> Prop)).
+
+Lemma inf_closed_cap_elem {A} {C : CompleteLattice A} (P: A -> Prop):
+  Proper (leq ==> leq) P -> inf_closed P ->
+  forall x y, P x -> P y -> P (cap x y).
+Proof.
+  intros Hmon Hinf x y HPx HPy.
+  assert (Hinfxy : P (inf (fun z => z = x \/ z = y))).
+  { apply Hinf. cbn; red. intros a [<- | <-]; assumption. }
+  eapply Hmon; [|apply Hinfxy].
+  eapply cap_spec.
+  split; apply leq_infx; tauto.
+Qed.
+
+Definition Symmetrical' {A} `(P : (A -> A -> Prop) -> Prop) := forall x, P x -> P (converse x).
+
+Lemma by_symmetry' {b : mon_Xrel} (s: mon_Xrel) (S: Symmetrical converse b s) {R: Chain b}
+(P : (X -> X -> Prop) -> Prop)
+(Hmon : Proper (leq ==> leq) P)
+(Hic : inf_closed P)
+(Hsymm : Symmetrical' P)
+: P (s (elem R)) <= P (b (elem R)).
+Proof.
+  transitivity (P (cap (s (elem R)) (converse (s (elem R))))).
+  - intros HP.
+  apply inf_closed_cap_elem.
+  + apply Hmon.
+  + apply Hic.
+  + apply HP.
+  + now apply Hsymm.
+  - apply Hmon.
+    intros x y Hcap.
+    eapply (@symmetrical_chain _ _ _ _ _ _ S R).
+  apply Hcap.
+Qed.
+
+
+End s.
+
+(** the [b] used to recognise the application in the goal is read off the type
+      of the supplied [R]. *)
+Ltac begin_symmetry R :=
+  lazymatch type of R with
+  | @Chain _ _ ?b =>
+      lazymatch goal with
+      | |-context [@body ?X ?Y ?LX ?LY b ?x] =>
+          pattern (@body X Y LX LY b x);
+          eapply by_symmetry'
+      | _ => fail "could not find an application of the coinductive function in the goal"
+      end
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+
+Ltac _revert_last := match goal with
+| H:_ |- _ => revert H
+end. 
+
+Ltac apply_by_symmetry R tac :=
+  (* first, extract the predicate [P] to use default_sym_tac) *)
+  begin_symmetry R;
+  (* then the subgoals are: *)
+  [
+    (* 1. find [s], the Symmetrical converse of [b].
+       Typeclass resolution will attempt this to find [s]
+       automatically; if it cannot be found it must be proved.
+       [once] is needed to ensure the right error messages are
+       propagated upwards from later tactics. *)
+  try once typeclasses eauto
+  (* 2. [P] must be monotone. Here we use our user-facing
+        solver that dispatches simple monotonicity proofs. *)
+  | try auto with mon
+  (* 3. [P] must be inf-closed. We do as in 2. *)
+  | try icauto
+  (* 4. [P] must have a symmetric shape. We do some tidying to first clean
+        up the proof state:
+        a. [intro P; _revert_last] simply puts the goal into a shape
+        where prior names are preserved.
+        b. [cbn [body converse]] does the symmetric 'flip' of the goal
+            so it is obvious the user needs to prove symmetry of [P].
+        then run the user-supplied [tac] to attempt
+        to "get symmetry automatically." In particular, if the user
+        supplies no tactic, [tac] will be [solve [clear; firstorder]].
+        If they supply [idtac], the goal will remain untouched. *)
+  | intro P; _revert_last; cbn [body converse]; tac
+  (* 5. The remaining goal is for the user to solve: that the
+        relation with [s] replacing [b]. We leave this goal untouched. *)
+  |].
+
+
+(* todo build to use ltac rather than notation, as notation is harder to find *)
+Ltac default_sym_tac := solve [clear;firstorder] || fail "could not get symmetry automatically".
+Tactic Notation "symmetric" hyp(R) "using" tactic(tac) :=
+  apply_by_symmetry R tac.
+
+Tactic Notation "symmetric" "using" tactic(tac) :=
+  lazymatch goal with
+  | R: Chain _ |- _ => symmetric R using tac
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+
+Tactic Notation "symmetric" hyp(R) :=
+  symmetric R using default_sym_tac.
+
+Tactic Notation "symmetric" :=
+  lazymatch goal with
+  | R: Chain _ |- _ => symmetric R
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+
+(** performing a single step (equivalent to [accumulate _], except that we do
+      not deal with composite candidates and the coinductive proof need not be
+      started) *)
 Ltac step := apply sub_bChain; simpl body.
