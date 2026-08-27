@@ -140,7 +140,7 @@ match goal with
   generalize dependent R; 
   intro R; 
   pattern (elem R);
-  apply tower; [solve_ic|]
+  apply tower; [icauto|]
   (* intro R *)
   end. 
 
