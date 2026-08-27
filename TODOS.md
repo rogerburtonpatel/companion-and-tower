@@ -1,12 +1,26 @@
 ## Usability 
-- [ ] Use camltac over ocaml plugin 
+- [x] Use camltac over ocaml plugin (moot: the plugin is gone, src/ removed,
+      the tactics are pure ltac in tactics.v)
 - [ ] Recover Build_mon - mon as a sublattice of monotone heterogenous functions?  
 - [ ] make progress a true typeclass 
 s.t. the type of di_similarity is
 Progress X X -> Progress X X -> X. 
 ## Bugfixes
 - [x] gfp in premise bug
-- [ ] apply_ptower (auto inf closed) for tower induction.
+- [x] apply_ptower (auto inf closed) for tower induction.
+- [x] accumulate on hypotheses of shape `f (elem c) u v` -- regressed in the
+      ltac rewrite, now fixed. monauto could not show
+      `Proper (leq ==> leq) (fun P => ba P z y)`: body_mono is the right lemma
+      but auto cannot invert `fun w => f w u v` into `fun w => Q (f w)` (not a
+      miller pattern). fixed by mon_lift in lattice.v -- peel the arguments,
+      then lift the leq hypothesis through each f via Hbody, which is the same
+      two-step decomposition the plugin's qTs_mono did with f carried in the
+      tcons cell. the old suite (theories/bugfixes.v, 5f59023) is now in
+      tests.v as section accumulate_body; 10 of its 11 cases pass, including
+      the two the plugin could not do (its uniformity restriction was a
+      reification limit, not a real one). the 11th, a conclusion of shape
+      `b (elem c) x y`, correctly still fails: `fun P => b P x y` is genuinely
+      not inf-closed.
 - [ ] Reflexive_chain failing when elem has arguments.
 - [x] accumulate unsupported subterm 
 - [x] accumulate no such chain
@@ -22,8 +36,11 @@ CHANGELOG
 - rewrote plugin infra in ltac, deprecating ocaml. includes infrastructure 
   for automatic dispatch of inf_closed goals. 
 - used infra to rewrite coinduction and accumulate tactics
-- NEXT: used infra to rewrite symmetric tactic 
-- NEXT: inf_closed dispatch for automatic tower induction proofs. 
+- used infra to rewrite symmetric tactic (symmetric', tactics.v)
+- inf_closed dispatch for automatic tower induction proofs (icauto + `tower induction`)
+- removed the ocaml plugin outright, and the diacritical/experiment files;
+  everything removed is recoverable from commit 5f59023.
+- fixed the accumulate regression on `f (elem c) u v` hypotheses (mon_lift)
 - NEXT: better step 
 - NEXT: active-step support 
 
@@ -63,6 +80,7 @@ being below the companion is being in the tower.
 is that true? 
 
 prove it in combine_companions. already proved: leq_t'/compat_chain
+(combine_companions.v was removed; recover from 5f59023)
 
 ok, so what about being below ucompan or wcompan? 
 
@@ -158,7 +176,66 @@ can such a thing be sound? probably. can it be complete? probably not.
 
 
 
-- [ ] Key: diacritical companions via the tower (vice versa)
+- [x] Key: diacritical companions via the tower (vice versa) -- ANSWERED.
+      (from theories/diacritical_redesign.v, removed; recover from 5f59023)
+
+      question: can the passive law (P) `evolution p f f` (compat-strength) be
+      relaxed to `f <= t b1` (up-to strength), giving a tower-native diacritical
+      companion?
+
+      NO for a FIRST-ORDER tower on the base lattice X, and the obstruction is
+      structural rather than about compat-vs-<=t strength. the active law's
+      conditional premise `R -p-> R` is a b1-POST-fixpoint condition (`R <= b1 R`,
+      i.e. below gfp: it selects bisimulation candidates). tower induction lives
+      on the opposite side -- chain elements are PRE-fixpoints (`b `x <= `x`,
+      above gfp) -- and ptower's relativiser Q must be MONOTONE (up-closed), so
+      it can never supply a post-fixpoint premise. the two sides meet only at gfp.
+      `R <= b1 R` is not Proper (leq ==> leq): if it were, x <= y with x <= b1 x
+      would give y <= b1 y -- false, take y := top.
+      checked: active_premise_forces_fixpoint; w_in_tower_b2_stalls (tower
+      induction for `w `x <= `x` stalls at exactly `b2 `x <= b1 (b2 `x)`).
+
+      so the extra active power comes precisely from the post-fixpoint
+      conditional law, a COINDUCTION-side object. realizable design: use ordinary
+      tower induction, and at an active position SWAP to coinduction via
+      di_coinduction (one lemma application) to get w.
+
+      BUT the impossibility is specific to the first-order tower on X. it does
+      NOT rule out a tower on the PAIR lattice L_lift X: the diacritical
+      companion (u,w) is a di_similarity of the two evolution progressions on
+      L_lift X, hence a gfp of a monotone SECOND-ORDER operator B_di --
+      experiments.v: B_di, compan_gfp (compan == gfp B_di), B_di_spec, and the
+      tower-induction principles di_chain_ind / di_tower. the post-fixpoint guard
+      `R <= b1 R` becomes a harmless fixed side-condition inside B_di (it does
+      not mention B_di's argument, so monotonicity survives).
+      so: no first-order base-lattice tower, but a genuine SECOND-order
+      pair-lattice tower -- the honest "tower induction based on the diacritical
+      companion".
+
+- a genuinely ACTIVE-ONLY up-to technique exists, with a counterexample showing
+  it is not an ordinary one. (from theories/active_only.v, removed; recover from
+  5f59023.) setting: passive step pstep total and deterministic, active qstep
+  arbitrary; upto_pstep S = S u {(pstep u, pstep v) | S u v} ("up to one passive
+  step").
+  - upto_pstep_below_w: sound ACTIVE technique (<= w). its active law genuinely
+    consumes the diacritical premise R <= bp R.
+  - upto_pstep_not_ordinary: NOT a sound ordinary up-to technique
+    (not <= t (bp cap bq)) -- six-state counterexample: two chains of passive
+    steps, the A-side middle state has a q-step and the B-side does not, so A0
+    and B0 are not bisimilar, yet {(A0,B0)} progresses into upto_pstep of itself.
+    so this is the phenomenon the diacritical companion exists for: usable in
+    active position, unsound in passive position.
+  - C0_D0_chain: an active-only technique used INSIDE an ordinary coinduction
+    proof, via the guarded behaviour b_uw (experiments.v) -- the passive conjunct
+    of the goal offers u, the active conjunct offers w, so the position in the
+    goal decides which techniques are legitimate.
+  - the TOWER is NECESSARY, not just convenient, for upto_pstep_strict (drop the
+    S summand, return only shifted pairs: not inflationary, which breaks the
+    compatibility-style proof). f_below_w_b would need
+    `forall R S, R <= bp R -> R <= bq S -> f R <= bq (f S)`, and that is FALSE
+    for upto_pstep_strict -- witness: two parallel chains of four states with a
+    single q-step in the middle of each. the tower target `snd x S` does contain
+    S (id_below_snd_chain), so f_below_w_cup goes through.
 - [x] Prove theorem 2.6 : Let R ∈ L. If R ↣ᵇ(t R) then R <= ν( b ).
 
 ## Usability 
