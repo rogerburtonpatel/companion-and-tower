@@ -1,15 +1,11 @@
 	-arg -w -arg -undo-batch-mode
 
 -R theories/ Coinduction
--I src/
-
--generate-meta-for-package rocq-coinduction
 
 theories/lattice.v
 theories/progress.v
 theories/evolution.v
 theories/tower.v
-theories/infclosed.v
 theories/companion.v
 theories/diacritical_companion.v
 theories/higherorder.v
@@ -17,6 +13,7 @@ theories/makeuptoimproved.v
 theories/rel.v
 theories/tactics.v
 theories/tests.v
+theories/all.v
 theories/utils.v
 theories/combine_companions.v
 theories/experiments.v
@@ -25,13 +22,3 @@ theories/active_only.v
 theories/diacritical_tower_example.v
 theories/eqit_sandbox.v
 theories/diacritical_redesign.v
-theories/bugfixes.v
-theories/all.v
-theories/difftest.v
-theories/tests_new.v
-
-src/reification.ml
-src/reification.mli
-src/reification_g.mlg
-src/reification_g.mli
-src/plugin.mlpack

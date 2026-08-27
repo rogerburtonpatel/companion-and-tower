@@ -1,4 +1,4 @@
-KNOWNTARGETS := RocqMakefile merlin
+KNOWNTARGETS := RocqMakefile
 KNOWNFILES   := Makefile _RocqProject
 
 .DEFAULT_GOAL := invoke-rocqmakefile
@@ -9,18 +9,10 @@ RocqMakefile: Makefile _RocqProject
 invoke-rocqmakefile: RocqMakefile
 	$(MAKE) --no-print-directory -f RocqMakefile $(filter-out $(KNOWNTARGETS),$(MAKECMDGOALS))
 
-# Regenerate the .merlin that ocaml-lsp/merlin reads for src/.  RocqMakefile's
-# own `.merlin' target is a file target with no prerequisites (its `.PHONY:
-# merlin' names no real rule), so it never refires once .merlin exists; remove
-# it first to force the rebuild.  Requires the dot-merlin-reader binary.
-merlin: RocqMakefile
-	rm -f .merlin
-	$(MAKE) --no-print-directory -f RocqMakefile .merlin
-
-.PHONY: invoke-rocqmakefile merlin $(KNOWNFILES)
+.PHONY: invoke-rocqmakefile $(KNOWNFILES)
 
 cleanall:: clean
-	rm -f RocqMakefile* *.d *.log */*.glob */.*.aux */*.vo* .merlin
+	rm -f RocqMakefile* *.d *.log */*.glob */.*.aux */*.vo*
 
 depgraph.dot::
 	@echo building dependency graph
