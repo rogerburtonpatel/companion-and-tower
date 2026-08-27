@@ -5,19 +5,12 @@
     observe that inf-closedness is compositional over the syntax of [P], and let
     [auto] follow that syntax.
 
-    The driver for this is the indexed reformulation [inf_closed'] below. It
-    composes definitionally, since 
-    [inf' Q f a] 
-    is by definition 
-    [inf' Q (fun i => f i a)] 
-    in the lattice of (dependent) functions. 
-    
-    In particular the base case, 
-    aka the goal mentioning the candidate applied to arguments, 
-    needs no particular lemmas at any arity, because 
-    after peeling the arguments the goal is exactly the hypothesis.
+    In particular the base case, aka the goal mentioning the candidate applied
+    to arguments, needs no particular lemmas at any arity, because after peeling
+    the arguments the goal is exactly the hypothesis.
  *)
 
+From Stdlib Require Import Program.Tactics. 
 Require Export lattice tower rel.
 Set Implicit Arguments.
 
@@ -49,7 +42,7 @@ Proof. intros HP x y xy. apply HP. now apply b. Qed.
 (** ** the automatic procedure *)
 
  
-(* Todo move this *)
+(* Todo move mon things *)
 Create HintDb mon discriminated. 
 
 #[export] Hint Resolve all_mono and_mono body_mono : mon. 
@@ -57,6 +50,10 @@ Create HintDb mon discriminated.
 
 #[export] Hint Extern 2 (Proper (leq ==> leq) _) =>
   (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
+
+(* tactics *)
+Ltac monauto := (auto 20 with mon || fail "`monauto` could not solve this goal."). 
+
 
 Create HintDb ic discriminated.
 #[export] Hint Resolve inf_closed_all 
@@ -69,21 +66,21 @@ Create HintDb ic discriminated.
 #[export] Hint Extern 2 (inf_closed _) =>
   (solve [intros ? ?; assumption]) : ic.
 
-(** [solve_ic] attempts to solve a goal of the form [inf_closed P] for a 
+(** [icauto] attempts to solve a goal of the form [inf_closed P] for a 
     predicate P. 
     If it cannot, it reports the shape it got stuck on 
     so that debugging is bearable. *)
-Ltac solve_ic :=
+Ltac icauto :=
   (* apply inf_closed'_inf_closed; *)
   tryif solve [auto 20 with ic mon nocore] then idtac
   else match goal with
        (* | |- inf_closed' ?P => *)
        | |- inf_closed ?P =>
          fail 1 "[coinduction] cannot show that this predicate is inf-closed:" P
-       | _ => fail 1 "bug in solve_ic, please report"
+       | _ => fail 1 "bug in icauto, please report"
        end.
 Goal inf_closed (fun P : nat -> bool -> nat + bool -> unit -> Prop => P 4 true (inl 5) tt). 
-  solve_ic.
+  icauto.
 Qed.  
 
 Section h.
@@ -92,7 +89,7 @@ Section h.
   Variable b: mon (forall n, T n -> T (n+n) -> Prop).
 
 Goal inf_closed (fun P : forall n : nat, T n -> T (n + n) -> Prop => P 2 (f 2) (f 4)).
-  solve_ic. 
+  icauto. 
 Qed.  
 End h. 
 
@@ -192,7 +189,7 @@ End h.
     goal, turning [forall n m j, ...] into [forall b0 b1 b2,
     ...].
 
-    The [inf_closed] side condition is discharged by [solve_ic] above, which
+    The [inf_closed] side condition is discharged by [icauto] above, which
     simply follows the syntax of [P]. *)
 
 (** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
@@ -214,7 +211,7 @@ Ltac gfp_intro' R :=
 
 Tactic Notation "coinduction'" ident(R) simple_intropattern(H) :=
   gfp_intro' R; pattern (elem R); revert R;
-  apply tower; [ solve_ic | intro R; cbn beta; intros H ].
+  apply tower; [ icauto | intro R; cbn beta; intros H ].
 
 (* Tower induction *)
 
@@ -226,7 +223,7 @@ Ltac clear_old_chain := lazymatch goal with
 Ltac tower_induction_with c := 
     pattern (elem c);
     apply tower;
-    [solve_ic | try clear_old_chain]. 
+    [icauto | try clear_old_chain]. 
 
 Tactic Notation "tower" "induction" "with" ident(c) := tower_induction_with c. 
 
@@ -310,7 +307,7 @@ Ltac apply_ptower' R n :=
       cbn beta;
       apply (ptower (Q:=Q) (P:=P));
       [ solve [auto 20 with ic mon nocore]
-      | solve_ic
+      | icauto
       | clear R; intro R; cbn beta; uncurry_back n ]
   | |- _ => fail 1 "[coinduction] no hypothesis about the candidate to accumulate"
   end.
@@ -405,3 +402,201 @@ Abort.
 Abort.      
 End bind. 
 
+(* symmetry arguments *)
+
+Require Import tactics.
+Import tactics.reification. 
+
+(* 
+  symmetric needs to: 
+  apply a by_symmetry lemma which creates 3 goals:
+  1 to find [s]
+  1 to prove the 'symmetric shape' of the goal, ideally with names intact
+  1 where [s] replaces [b], with names DEFINITELY intact.
+
+  The first is easy. The second requires knowing how to state simply this 
+  in Rocq. The third is easy but the names might be hard - might need a pattern
+  trick.
+*)
+
+Section s. 
+Context {X} {CL : CompleteLattice X}.
+Notation mon_Xrel := (mon (X -> X -> Prop)).
+
+Lemma inf_closed_cap_elem {A} {C : CompleteLattice A} (P: A -> Prop):
+  Proper (leq ==> leq) P -> inf_closed P ->
+  forall x y, P x -> P y -> P (cap x y).
+Proof. 
+  intros Hmon Hinf x y HPx HPy.
+  assert (Hinfxy : P (inf (fun z => z = x \/ z = y))). 
+  { apply Hinf. cbn; red. intros a [<- | <-]; assumption. }
+  eapply Hmon; [|apply Hinfxy]. 
+  eapply cap_spec.
+  split; apply leq_infx; tauto. 
+Qed.
+
+Definition Symmetrical' {A} `(P : (A -> A -> Prop) -> Prop) := forall x, P x -> P (converse x). 
+
+Lemma by_symmetry' {b : mon_Xrel} (s: mon_Xrel) (S: Symmetrical converse b s) {R: Chain b} 
+(P : (X -> X -> Prop) -> Prop)
+(Hmon : Proper (leq ==> leq) P)
+(Hic : inf_closed P)
+(Hsymm : Symmetrical' P)
+: P (s (elem R)) <= P (b (elem R)).
+Proof. 
+  transitivity (P (cap (s (elem R)) (converse (s (elem R))))).
+  - intros HP. 
+  apply inf_closed_cap_elem. 
+  + apply Hmon.
+  + apply Hic.
+  + apply HP. 
+  + now apply Hsymm.
+  - apply Hmon. 
+    intros x y Hcap. 
+    eapply (@symmetrical_chain _ _ _ _ _ _ S R). 
+  apply Hcap. 
+Qed.
+
+
+End s.    
+
+Ltac begin_symmetry R tac :=
+  lazymatch goal with
+  | R : Chain ?b |- _ =>
+      lazymatch goal with
+      | |- context [@body ?X ?Y ?LX ?LY b ?x] =>
+          pattern (@body X Y LX LY b x);
+          eapply by_symmetry'
+      | _ => fail "could not find an application of the coinductive function in the goal"
+      end
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+
+Ltac apply_by_symmetry' R tac := 
+  (* first, extract the predicate [P] to use [by_symmetry] *)
+  begin_symmetry R tac; 
+  (* then the subgoals are: *)
+  [
+    (* 1. find [s], the Symmetrical converse of [b]. 
+       Typeclass resolution will attempt this to find [s] 
+       automatically; if it cannot be found it must be proved.
+       [once] is needed to ensure the right error messages are 
+       propagated upwards from later tactics. *)  
+  try once typeclasses eauto 
+  (* 2. [P] must be monotone. Here we use our user-facing
+        solver that dispatches simple monotonicity proofs. *)
+  | try auto with mon 
+  (* 3. [P] must be inf-closed. We do as in 2. *)
+  | try icauto 
+  (* 4. [P] must have a symmetric shape. We do some tidying to first clean 
+        up the proof state:
+        a. [intro P; revert_last] simply puts the goal into a shape 
+        where prior names are preserved. 
+        b. [cbn [body converse]] does the symmetric 'flip' of the goal 
+            so it is obvious the user needs to prove symmetry of [P]. 
+        then run the user-supplied [tac] to attempt 
+        to "get symmetry automatically." In particular, if the user 
+        supplies no tactic, [tac] will be [solve [clear; firstorder]]. 
+        If they supply [idtac], the goal will remain untouched. *)
+  | intro P; revert_last; cbn [body converse]; tac
+  (* 5. The remaining goal is for the user to solve: that the 
+        relation with [s] replacing [b]. We leave this goal untouched. *)
+  |].
+
+
+(* todo build to use ltac rather than notation, as notation is harder to find *)
+Ltac default_sym_tac' := solve [clear;firstorder] || fail "could not get symmetry automatically".
+Tactic Notation "symmetric'" hyp(R) "using" tactic(tac) :=
+  apply_by_symmetry' R tac.
+
+Tactic Notation "symmetric'" "using" tactic(tac) :=
+  lazymatch goal with
+  | R: Chain _ |- _ => symmetric' R using tac
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+  
+Tactic Notation "symmetric'" hyp(R) :=
+  symmetric' R using default_sym_tac'.
+
+Tactic Notation "symmetric'" :=
+  lazymatch goal with
+  | R: Chain _ |- _ => symmetric' R
+  | _ => fail "could not find coinductive candidate of form `Chain _`"
+  end.
+
+Section symmetry_tests.  
+
+  Variables b c s: mon (nat -> nat -> Prop).
+
+  Notation b' := (cap s (converse ° s ° converse)).
+
+  Goal forall n m, gfp b' n m.
+  Proof.
+    coinduction R H.
+    symmetric. 
+  Abort.
+    
+  Goal forall n m, gfp b' n m.
+  Proof.
+    coinduction R H.
+    symmetric'.  
+  Abort.  
+
+
+  Goal forall n m, gfp b' (n+m) (m+n).
+  Proof.
+    coinduction R H.
+    symmetric. 
+  Abort.  
+  Goal forall n m, gfp b' (n+m) (m+m).
+  Proof.
+    Fail symmetric.
+    coinduction R H.
+    Fail symmetric.            
+    symmetric using idtac.
+    Fail default_sym_tac.
+  Abort.  
+  Goal forall n m, (forall a, gfp b' (n+a) (a+m)) /\ (forall b, gfp b' (b+m) (n+b)).
+    coinduction R H. 
+    symmetric. 
+  Abort.
+  
+
+  (* nat tests *)
+Context {bnat i : mon (nat -> nat -> Prop)} {H : Involution i}. 
+Notation bnat' := (cap bnat (converse ° bnat ° converse)). 
+
+
+Goal forall {R : Chain bnat'} 
+(Hsymmetric_holds : forall x y, bnat (elem R) (x+y) y /\ bnat (elem R) x y),
+ forall x y, 
+bnat' (elem R) (x+y) y /\ bnat' (elem R) x y.
+  intros R Hsymmetric_holds. 
+  begin_symmetry R idtac.
+  typeclasses eauto.
+  monauto.
+  icauto.
+  intro P; revert_last; 
+  cbn [body converse]; clear; firstorder.
+  exact Hsymmetric_holds.  
+Qed. 
+
+Goal forall {R : Chain bnat'} 
+(Hsymmetric_holds : forall x y, bnat (elem R) (x+y) y /\ bnat (elem R) x y),
+ forall x y, 
+bnat' (elem R) (x+y) y /\ bnat' (elem R) x y.
+  intros R Hsymmetric_holds. 
+  symmetric'. 
+  exact Hsymmetric_holds.  
+Qed. 
+
+Goal forall {R : Chain bnat'} 
+(Hsymmetric_holds : forall x y, bnat (elem R) (x+y) y /\ bnat (elem R) x y),
+ forall x y, 
+bnat' (elem R) (x+y) y /\ bnat' (elem R) x y.
+  intros R Hsymmetric_holds. 
+  symmetric'. 
+  exact Hsymmetric_holds.  
+Qed.
+
+End symmetry_tests.

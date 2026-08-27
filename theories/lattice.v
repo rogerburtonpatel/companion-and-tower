@@ -471,7 +471,7 @@ Section mon_comp.
  Proof. intro. apply (mon_cap h). Qed.
 
   (* todo: nicer inf_spec *)
-
+(* todo: remove this *)
  Definition inf'' : (X -> Prop) -> X := fun P => sup (fun y => forall x, P x -> y <= x).
 
  Lemma inf_same P : inf P == inf'' P. 
@@ -609,24 +609,3 @@ Section involutions.
  Qed.
 End involutions.
 Arguments Involution {_ _} _.
-
-(* tactics *)
-
-Ltac apply_leq := match goal with [H : _ <= _ |- _] => intros; apply H end. 
-
-(* nonlinear pattern works here *)
-Ltac induct_on_premise := match goal with 
-| H: context [?rel _] |- context [?rel ] => induction H
-end. 
-
-Ltac monauto := (solve [
-(* break `Proper`, introduce names and premises` *)
-cbv; 
-intros; 
-(* find hypothesis matching goal and proceed by cases *)
-induct_on_premise; 
-(* break down each case as necessary. `solve` will backtrack in a helpful way.  *)
-try econstructor; 
-(* use monotonicity fact itself: [sim] <= [sim'] *)
-try apply_leq; 
-eauto] || fail "`monauto` could not solve this goal."). 

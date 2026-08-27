@@ -234,9 +234,9 @@ Proof.  *)
  Qed.
 
  (* idea: the above lemma can be used as follows: *)
- (*
+(*  
  Section s.
-  Variable b: mon_h (nat -> nat -> Prop).
+  Variable b: mon (nat -> nat -> Prop).
   Goal forall n m (k: n=m), gfp b (n+n) (m+m) /\ forall k, gfp b (n+k) (k+m).
     apply (let A := ABS' nat (ABS' nat PRP) in
            tower A
@@ -249,8 +249,8 @@ Proof.  *)
     simpl pT.
     intros R HR. 
   Abort.
- End s.
-  *)
+ End s. *)
+ 
  
  (** ** tools for the [accumulate] tactic *)
 

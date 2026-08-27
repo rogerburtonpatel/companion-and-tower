@@ -48,8 +48,7 @@ Section s.
     accumulate H''. 
     cut ((forall x, x ≡[R] 1) /\ 0 ≡[R] 18). admit.
     accumulate [H''' H'''']. 
-  Abort.
-
+  Abort.  
   
   Notation b' := (cap s (converse ° s ° converse)).
   Goal forall n m, gfp b' n m.
@@ -67,14 +66,13 @@ Section s.
   Proof.
     Fail symmetric.
     coinduction R H.
-    Fail symmetric.             (* TOFIX: message (problem is that "tac1;[tac2|]" 
-                                   fails to report the error messages from tac2) *)
+    Fail symmetric.            
     symmetric using idtac.
     Fail default_sym_tac.
   Abort.  
   Goal forall n m, (forall a, gfp b' (n+a) (a+m)) /\ (forall b, gfp b' (b+m) (n+b)).
     coinduction R H.
-    symmetric. 
+    symmetric.   
   Abort.
   
 End s.
