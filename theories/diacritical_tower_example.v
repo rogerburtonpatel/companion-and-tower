@@ -532,14 +532,22 @@ Section weak.
   Corollary eutt_refl (t : itree) : eutt RR t t.
   Proof. apply tau_shift_below_eutt. left. reflexivity. Qed.
 
-  (* OPEN.  Whether up-to-eutt (the two-sided closure [eutt o S o eutt]) is
-     [<= w] here is not settled.  The remaining obligation is [pev_weak], which
-     is unconditional and quantifies over an ARBITRARY target [S]:
-       [S1 <= c_p S2 -> eutt_clo S1 <= c_p (eutt_clo S2)].
-     The case to examine is [CpTau] with an [S2] relating a divergent tree to a
-     convergent one: the closure absorbs taus on one side only, and [c_pF],
-     inductive in its stripping rules, may then have no derivation.  If the
-     two-sided closure does fail, the question becomes which guarded form
-     succeeds. *)
+  (* SETTLED, in [itree_active_upto.v].  Up-to-eutt is NOT [<= w].
+     The cause is not divergence but a head-KIND mismatch: [c_p] is permissive
+     WITHIN a frontier ([CpRet], [CpVis] ignore their payload) yet still demands
+     both heads be the same kind, and the closure strips the very taus a [CpTau]
+     step relied on.  Witness, over [E := fun _ => unit], [R := nat]:
+       [S  := {(Ret 0, Vis tt k)}]     [R0 := {(Tau (Ret 0), Tau (Vis tt k))}]
+     [R0 <= c_p S] holds by [CpTau], but [eutt_clo R0] contains [(Ret 0, Vis tt k)]
+     and [c_pF] has no [RetF]/[VisF] rule -- see [passive_law_fails], which kills
+     the weakened target [cup (f S) S] too.  And [R0 <= c_p (eutt_clo R0)] while
+     [~ gfp c_p R0], so [eutt_clo] is unsound for [c_p], hence not [<= t c_p],
+     hence not [<= w] by [not_below_w] -- see [eutt_clo_not_below_w].
+
+     This does not contradict the old paco [euttG] ([itrees-old/.../UpToTaus.v]):
+     [euttG] never uses up-to-eutt as a sound up-to function.  Its [transU] is
+     confined to the high slot [rH], and only a Vis restores it; the certified
+     closure is [eqitC _ _ false false], the STRONG one.  Up-to-eutt is a state
+     transition you pay for with observable progress, not a licence you hold. *)
 
 End weak.

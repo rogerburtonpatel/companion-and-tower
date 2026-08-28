@@ -336,7 +336,15 @@ Ltac apply_ptower' R n :=
       [ monauto
       | icauto
       | clear R; intro R; cbn beta; uncurry_back n ]
-  | |- _ => fail 1 "[coinduction] no hypothesis about the candidate to accumulate"
+  (* nothing is known about the candidate yet, so there is no [Q] to relativise
+     by and plain [tower] suffices.  the goal still becomes the coinduction
+     hypothesis, which is what distinguishes this from [step]. *)
+  | |- (fun z => @?P z) _ =>
+      cbn beta;
+      apply (tower (P:=P));
+      [ icauto
+      | clear R; intro R; cbn beta ]
+  | |- _ => fail 1 "[coinduction] accumulate could not abstract the candidate from this goal"
   end.
 
 

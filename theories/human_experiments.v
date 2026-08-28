@@ -164,7 +164,6 @@ Hypothesis HProperActive_after : forall (cb : Chain b), Proper (gfp b ==> eq ==>
 Variables x y z : X. 
 Variable cb : Chain b. 
 Hypothesis CONDITIONAL_UPTO : gfp b x z. 
-Hypothesis ACTIVE_STEP : ba (elem cb) z y. 
 
 
 Goal ba (elem cb) <= elem cb. 
@@ -177,12 +176,10 @@ Goal elem cb x y.
   (* we cannot use our conditional up-to technique. *)
   Fail rewrite CONDITIONAL_UPTO. 
   Fail eapply HProperActive. 
-  Fail eapply HProperActive_after. 
-  accumulate acc.
-
-  assert (h : b (elem cb) z y) by admit.
-  clear ACTIVE_STEP.
-  clear h.
+  Fail eapply HProperActive_after.
+  accumulate acc.  
+  apply Hb. 
+  rewrite CONDITIONAL_UPTO. 
 Abort.
   (* clear HProperActive. (* we actually won't need this one. *)
 

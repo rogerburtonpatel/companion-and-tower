@@ -212,6 +212,35 @@ can such a thing be sound? probably. can it be complete? probably not.
       pair-lattice tower -- the honest "tower induction based on the diacritical
       companion".
 
+- up-to-eutt for itrees is NOT `<= w`, and the OPEN note at the end of
+  diacritical_tower_example's Section weak is now settled (theories/itree_active_upto.v).
+  - the cause is a head-KIND mismatch, not divergence as the note guessed. c_p is
+    permissive WITHIN a frontier (CpRet/CpVis ignore their payload) but still demands
+    both heads be the same kind, and eutt_clo strips the very taus a CpTau step relied
+    on. witness over E := fun _ => unit, R := nat:
+      S := {(Ret 0, Vis tt k)}      R0 := {(Tau (Ret 0), Tau (Vis tt k))}
+    `passive_law_fails` kills the passive law of f_below_w AND the weakened
+    f_below_w_cup target `cup (f S) S`. `eutt_clo_not_below_w` kills the conclusion
+    outright, via the repo's own not_below_w.
+  - it does not contradict the old paco euttG: euttG never uses up-to-eutt as a sound
+    up-to function. only `eqitC _ _ false false` (the STRONG closure) is ever proved
+    compatible in itrees; transU (the eutt one) lives fenced behind the high slot rH,
+    and only a Vis restores it. up-to-eutt is a state transition paid for with
+    observable progress, not a licence.
+- [ ] SPIKE RESULT: ptower cannot carry the Vis guard.
+  - the STEP goal DOES discharge (`spike_step`): with Q x := eutt_clo S <= x and
+    P x := S <= x, a Vis-guarded S whose continuations lie in `cup (eutt_clo S) S` is
+    covered by Q and P. this is what plain tower induction lacked.
+  - but the CONCLUSION is circular (`Q_at_gfp_implies_goal`): ptower gives
+    `forall x : Chain, Q x -> P x`, and instantiating at chain_gfp demands
+    `eutt_clo S <= eutt`, which already yields the goal `S <= eutt`.
+  - and the repair Q x := eutt_clo x <= x is not Proper (leq ==> leq)
+    (`eutt_closedness_not_monotone`, witness bot <= S0). same obstruction as
+    diacritical_redesign.v: a down-closed side condition where ptower wants up-closed.
+  - so the guard needs something other than a monotone relativiser. NEXT: decide
+    between a standalone bool-indexed relation (mini-euttG with its own soundness
+    proof) and something else.
+
 - a genuinely ACTIVE-ONLY up-to technique exists, with a counterexample showing
   it is not an ordinary one. (from theories/active_only.v, removed; recover from
   5f59023.) setting: passive step pstep total and deterministic, active qstep

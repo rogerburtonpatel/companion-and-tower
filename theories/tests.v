@@ -222,6 +222,12 @@ Section accumulate_body.
     accumulate acc.
   Abort.
 
+  (** nothing known about the candidate yet: [tower] rather than [ptower].
+      unlike [step], this still hands back the goal as [acc]. *)
+  Goal elem cb x y.
+    accumulate acc.
+  Abort.
+
   (** the conclusion itself may not be about a function of the candidate *)
   Goal elem cb z y -> b (elem cb) x y.
     intro h.
