@@ -122,9 +122,9 @@ Section s1.
  Corollary gfp_bt x: gfp <= bt x.
  Proof. now rewrite gfp_pfp, (gfp_t x) . Qed.
 
- Lemma leq_f_ft (f : [X ⇒ X]): f <= f ° t.
+ Lemma leq_f_ft (f : mon X): f <= f ° t.
  Proof. now rewrite <-id_t. Qed.
- Lemma leq_f_tf (f : [X ⇒ X]): f <= t ° f.
+ Lemma leq_f_tf (f : mon X): f <= t ° f.
  Proof. now rewrite <-id_t. Qed.
  
 End s1.
@@ -348,7 +348,7 @@ Section symmetry.
  Lemma switch x y: i x <= y <-> x <= i y.
  Proof. split; (intro H; apply i in H; now rewrite invol' in H). Qed.
 
- Lemma Switch (f g : [X ⇒ X]): i ° f <= g <-> f <= i ° g.
+ Lemma Switch (f g : mon X): i ° f <= g <-> f <= i ° g.
  Proof. split; (intros H x; apply switch, H). Qed.
 
  Lemma compat_if_fi f: compat i f -> compat f i.

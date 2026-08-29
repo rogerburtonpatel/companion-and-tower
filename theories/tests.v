@@ -21,14 +21,46 @@ Goal inf_closed (fun P : forall n : nat, T n -> T (n + n) -> Prop => P 2 (f 2) (
 Qed.
 End h.
 
+(** ** the relation classes, at an arity above [mon (relation A)] *)
+Section ic_classes.
+  Variable T: Type -> Type.
+  Variables (X: Type) (RR: X -> X -> Prop).
+  Notation L := (forall X Y, (X -> Y -> Prop) -> T X -> T Y -> Prop).
+
+  Goal inf_closed (fun x: L => Reflexive (x X X RR)).  icauto. Qed.
+  Goal inf_closed (fun x: L => Symmetric (x X X RR)).  icauto. Qed.
+  Goal inf_closed (fun x: L => Transitive (x X X RR)). icauto. Qed.
+  Goal inf_closed (fun x: L => forall t u, x X X RR t u -> x X X RR u t). icauto. Qed.
+
+  (** a [Proper] whose codomain relation is [iff], as in a rewriting instance
+      for a chain element *)
+  Variable Q: T X -> T X -> Prop.
+  Goal inf_closed (fun x: L => Proper (Q ==> Q ==> iff) (x X X RR)). icauto. Qed.
+  Goal inf_closed (fun x: L => Proper (Q ==> eq ==> iff) (x X X RR)). icauto. Qed.
+  Goal inf_closed (fun x: L => Proper (Q ==> Q ==> Basics.flip Basics.impl) (x X X RR)). icauto. Qed.
+  Goal inf_closed (fun x: L => Proper (Q ==> Q ==> Basics.impl) (x X X RR)). icauto. Qed.
+End ic_classes.
+
+(** ** [monauto] on an inductively-defined coinductive function *)
+Section functor_mono.
+  Variables (A: Type) (red: A -> A -> Prop).
+
+  Inductive simF (sim: A -> A -> Prop): A -> A -> Prop :=
+  | sim_now  x y:   red x y -> simF sim x y
+  | sim_later x y z: red x y -> sim y z -> simF sim x z.
+
+  Goal Proper (leq ==> leq) simF.
+  Proof. monauto. Qed.
+End functor_mono.
+
 (** ** [tower induction] *)
 
 Ltac test_nat_goal :=
 first [
   (lazymatch goal with
 |- (elem _ _ _ -> elem _ _ _) ->
-   (@body _ _ _ _ _ _ _ _) ->
-   @body _ _ _ _ _ _ _ _ => idtac
+   (@body _ _ _ _ _ _) ->
+   @body _ _ _ _ _ _ => idtac
 end) | fail 1 "test_nat_goal failed : tower induction failed to produce the correct goal shape" ].
 
 Goal forall (b : mon (nat -> nat -> Prop)) (c : Chain b),
@@ -40,7 +72,7 @@ test_nat_goal.
 Abort.
 
 (* the [body] coersion means the goal does not match the [b `c 5 6] one sees;
-   tactics must match [@body _ _ _ _ _ _ _ _] instead. *)
+   tactics must match [@body _ _ _ _ _ _] instead. *)
 Goal forall (b : mon (nat -> nat -> Prop)) (c : Chain b),
 elem c 4 5 -> elem c 5 6.
 intros b c.
@@ -50,7 +82,7 @@ Fail lazymatch goal with
 | |- b `c 5 6 => idtac
 end.
 lazymatch goal with
-| |- @body _ _ _ _ _ _ _ _ => idtac
+| |- @body _ _ _ _ _ _ => idtac
 end.
 Abort.
 
@@ -86,6 +118,13 @@ Section s.
   Goal gfp b 5 6 -> gfp b 7 8.
     coinduction R H.
   Abort.
+  (* the candidate's name may also be bound by the goal's telescope *)
+  Goal forall R, R ~ R.
+    coinduction R H.
+  Abort.
+  Goal forall R n, R+n ~ n+R.
+    coinduction R H.
+  Abort.
   Goal gfp b 5 6 /\ gfp c 7 8.
     Fail coinduction R H.
   Abort.
@@ -105,6 +144,31 @@ Section s.
     accumulate [H''' H''''].
   Abort.
 
+
+  (** ** [step] and [unstep] *)
+  Goal 5 ~ 6.
+    step.
+    Fail step.
+    unstep.
+    Fail unstep.
+  Abort.
+  Goal forall R: Chain b, elem R 5 6.
+    intro R. step.
+  Abort.
+  Goal gfp b 5 6 -> True.
+    intro H. step in H. unstep in H. exact I.
+  Abort.
+
+  (** through a definition standing for the fixpoint *)
+  Definition bsim := gfp b.
+  Goal bsim 5 6.
+    step.
+    Fail step.
+    unstep.
+  Abort.
+  Goal bsim 5 6 -> True.
+    intro H. step in H. unstep in H. exact I.
+  Abort.
 
   Notation b' := (cap s (converse ° s ° converse)).
   Goal forall n m, gfp b' n m.
@@ -148,6 +212,18 @@ Section h.
   Goal forall d, gfp b 3 d (inr d) tt.
   Proof.
     coinduction R H.
+  Abort.
+
+  (** stepping, at this arity too *)
+  Goal gfp b 4 true (inl 5) tt.
+  Proof.
+    step.
+    Fail step.
+    unstep.
+  Abort.
+  Goal forall R: Chain b, elem R 4 true (inl 5) tt.
+  Proof.
+    intro R. step.
   Abort.
 End h.
 
@@ -222,8 +298,14 @@ Section accumulate_body.
     accumulate acc.
   Abort.
 
-  (** the conclusion itself may not be about a function of the candidate *)
+  (** the conclusion itself may not be about a function of the candidate,
+      spelt either way *)
   Goal elem cb z y -> b (elem cb) x y.
+    intro h.
+    Fail accumulate acc.
+  Abort.
+
+  Goal elem cb z y -> elem (chain_b cb) x y.
     intro h.
     Fail accumulate acc.
   Abort.

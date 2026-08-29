@@ -15,29 +15,6 @@ we provide three tactics:
 *)
 
 
-(** ** starting a proof by (enhanced) coinduction *)
-(** when the goal is of the shape
-
-    [forall x y..., gfp b u v /\ forall z, P -> gfp b s t]
-
-    where x,y... may appear in u, v, P, s, t and z may appear in P, s ,t
-    (more complex alternations of quantifiers/conjunctions/implications being allowed)
-    and [b] is the function for the considered coinductive relation
-
-    [coinduction R H] moves to a goal
-
-    R: Chain b
-    H: forall x y..., `R u v /\ forall z, P -> `R s t
-    -------------------------------------------------------
-    forall x y..., b `R u v /\ forall z, P -> b `R s t
-
-    [R] should be understood as the bisimulation up-to candidate.
-    [H] expresses the pairs [R] is assumed to contain.
-    Note the move to [b `R] in the conclusion: now we should play at least one step of the coinductive game for all pairs inserted in the candidate.
-    Also note that [H] may be an introduction pattern.
- *)
-
-
 (** * Automatically discharge [inf_closed] side conditions
 
     [tower] requires [inf_closed P] for the predicate [P] one reasons about.
@@ -50,68 +27,82 @@ we provide three tactics:
     the arguments the goal is exactly the hypothesis.
  *)
 
-(** ** accumulating knowledge in a proof by enhanced coinduction *)
-
-(** when the goal is of the shape, typically obtained after starting a proof by coinduction and    performing one step of the coinductive game:
-
-    R: Chain b
-    H: forall x y, `R u v
-    H': forall x y z, P -> `R s t
-    --------------------------------
-    forall i j, `R p q
-
-    (more complex alternations of quantifiers/conjunctions/implications being allowed in both hypotheses and conclusion)
-
-    [accumulate H''] moves to a goal
-
-    R: Chain b
-    H: forall x y, `R u v
-    H': forall x y z, P -> `R s t
-    H'': forall i j, `R p q
-    --------------------------------
-    forall i j, b `R p q
-
-    The conclusion has been saved as an hypothesis [H''],
-    and a [b] has been inserted in the conclusion, so that we have to play at least one step of the coinductive game on the added pairs
-
-    Like for [coinduction], [H''] maybe an introduction pattern.
- *)
-
-(** reasoning on symmetric candidates with symmetric functions *)
-(** this tactic makes it possible to play only half of the coinductive game in cases where both the game and the current goal are symmetric:
-    - that the game is symmetric is inferred using the typeclasse [Symmetrical]
-    - that the goal is symmetric is proven using the given tactic (by default, [firstorder])
-    the goal should be of the form
-    [forall x y..., b `R u v] 
-    it moves to a goal of the form
-    [forall x y..., s `R u v] 
-    (where [R: Chain b] with [b] the function for the coinductive game, and [s] the function for the `half of [b]')
-    conjunctions are also allowed, like in the other tactics)
- *)
-
-
 
 Require Export lattice tower rel.
 Set Implicit Arguments.
 
+(* the [mon] database TODO DOCUMENT. *)
+Create HintDb mon discriminated.
+#[global] Hint Resolve all_mono and_mono body_mono : mon.
+#[global] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
 
-Lemma inf_closed_and {X} {L: CompleteLattice X} (P Q: X -> Prop):
-  inf_closed P -> inf_closed Q -> inf_closed (fun x => P x /\ Q x).
-Proof. apply inf_closed_cap. Qed.
+#[global] Hint Extern 2 (Proper (leq ==> leq) _) =>
+  (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
+
+(* todo make this bound less of a hack *)
+(* this catches a particular corner case which is relevant in the study of
+   active-only up-to techniques. 
+
+   the corner case is a hypothesis in which the candidate sits under a monotone
+   function it is not the chain of, as in [ba (elem c) u v] with [c : Chain b].
+   that predicate is indeed monotone in the candidate, but [auto] cannot see it
+   because using [body_mono] would mean reading [fun w => ba w u v] as [fun w =>
+   Q (ba w)], and there is no first-order way to guess [Q]. so we peel the
+   arguments off, then walk back out through each monotone function in turn
+   using its own [Hbody]. we use [match] rather than [lazymatch] so nesting like
+   [ba (b w)] can backtrack onto the inner function first. the bound stops the
+   wrapping from looping. *)
+Ltac mon_lift H n :=
+  first [ solve [assumption | apply H; assumption]
+        | lazymatch n with
+          | S ?m =>
+              match goal with
+              | |- context [@body _ _ ?b _] => mon_lift (Hbody b _ _ H) m
+              end
+          end ].
+
+#[global] Hint Extern 4 (Proper (leq ==> leq) _) =>
+  (solve [ repeat intro;
+           lazymatch goal with H : _ <= _ |- _ => mon_lift H 4 end ]) : mon.
+
+Ltac apply_leq :=
+  match goal with
+  | [H: _ <= _ |- _] => intros; apply H
+  | [H: leq _ _ |- _] => intros; apply H
+  end.
+
+Ltac induct_on_premise :=
+  once (match reverse goal with
+        | H: context [?rel _] |- context [?rel] => induction H
+        end).
+
+Ltac functor_mono :=
+  solve [ cbv; intros;
+          solve [ induct_on_premise; try econstructor; try apply_leq; eauto 5 ] ].
+
+Ltac monauto :=
+  solve [auto 20 with mon] ||
+  functor_mono ||
+   fail "`monauto` could not solve this goal.".
 
 
 (** ** the automatic procedure *)
 
 Create HintDb ic discriminated.
-#[export] Hint Resolve inf_closed_all
+#[global] Hint Resolve inf_closed_all
                        inf_closed_cap
                        inf_closed_and
                        inf_closed_leq
                        inf_closed_impl : ic.
 
 (** base cases: the candidate applied to arguments. *)
-#[export] Hint Extern 2 (inf_closed _) =>
+#[global] Hint Extern 2 (inf_closed _) =>
   (solve [intros ? ?; assumption]) : ic.
+
+(** the relation classes, at any arity *)
+#[global] Hint Extern 1 (inf_closed _) =>
+  (progress (unfold Reflexive, Symmetric, Transitive, Proper, respectful,
+                    iff, Basics.flip, Basics.impl)) : ic.
 
 (** [icauto] attempts to solve a goal of the form [inf_closed P] for a
     predicate P.
@@ -172,7 +163,6 @@ Ltac icauto :=
     QUESTION: can we do better? existentials are the curiosity here...
 
 
-
     Example:
 
     [Lemma needs_coinduction : forall ... (H: ...), gfp b ....]
@@ -221,13 +211,6 @@ Ltac icauto :=
     The [inf_closed] side condition is discharged by [icauto] above, which
     simply follows the syntax of [P]. *)
 
-(** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
-    conclusion of the goal: those appearing in hypotheses are to be left alone,
-    so that [coinduction] on [gfp b 5 6 -> gfp b 7 8] keeps the premise as
-    [gfp b 5 6] rather than turning it into a statement about the candidate.
-    We thus strip the leading telescope into the context before applying
-    [gfp_prop], and revert it once [R] has been introduced.
-    [intro] (rather than [intro h] on a fresh [h]) preserves binder names. *)
 (** [gfp_prop] can abstract the [gfp] of only one function, so a conclusion
     mentioning two of them cannot be a proof by coinduction.  detect that here:
     otherwise the abstraction silently keeps the other [gfp] and the failure
@@ -246,15 +229,67 @@ Ltac check_one_candidate :=
     fail "[coinduction] only one coinductive candidate is allowed: this conclusion mentions the gfps of two different functions"
   else idtac.
 
-Ltac gfp_intro' R :=
+(** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
+    conclusion of the goal: those appearing in hypotheses are to be left alone,
+    so that [coinduction] on [gfp b 5 6 -> gfp b 7 8] keeps the premise as
+    [gfp b 5 6] rather than turning it into a statement about the candidate.
+    We thus strip the leading telescope into the context before applying
+    [gfp_prop], and revert it once [R] has been introduced.
+    [intro] (rather than [intro h] on a fresh [h]) preserves binder names.
+    The candidate is introduced under a private name and renamed to [R] only
+    once the telescope has been reverted, since the telescope may itself bind
+    [R]. *)
+
+(** the conclusion is often stated through a definition standing for the
+    greatest fixpoint, as in [Definition eutt := gfp b]. [gfp] is opaque, so
+    [repeat red] stops exactly when the fixpoint is exposed. Without this,
+    [apply gfp_prop] unifies its [P gfp] against the folded conclusion by
+    taking [P] constant, and the failure only surfaces later, as [pattern]
+    finding no subterm. *)
+Ltac expose_gfp :=
+  lazymatch goal with
+  | |- context [@gfp _ _ _] => idtac
+  | |- _ =>
+      tryif progress (repeat red) then expose_gfp
+      else fail 1 "[coinduction] no greatest fixpoint in the conclusion"
+  end.
+
+Ltac gfp_intro_ c :=
   lazymatch goal with
   | |- forall _ : _, _ =>
       intro;
       lazymatch goal with
-      | h: _ |- _ => gfp_intro' R; revert h
+      | h: _ |- _ => gfp_intro_ c; revert h
       end
-  | |- _ => check_one_candidate; apply gfp_prop; intro R
+  | |- _ => expose_gfp; check_one_candidate; apply gfp_prop; intro c
   end.
+
+Ltac gfp_intro' R :=
+  let c := fresh "coind_candidate" in
+  gfp_intro_ c;
+  rename c into R.
+
+(** ** starting a proof by (enhanced) coinduction *)
+(** when the goal is of the shape
+
+    [forall x y..., gfp b u v /\ forall z, P -> gfp b s t]
+
+    where x,y... may appear in u, v, P, s, t and z may appear in P, s ,t
+    (more complex alternations of quantifiers/conjunctions/implications being allowed)
+    and [b] is the function for the considered coinductive relation
+
+    [coinduction R H] moves to a goal
+
+    R: Chain b
+    H: forall x y..., `R u v /\ forall z, P -> `R s t
+    -------------------------------------------------------
+    forall x y..., b `R u v /\ forall z, P -> b `R s t
+
+    [R] should be understood as the bisimulation up-to candidate.
+    [H] expresses the pairs [R] is assumed to contain.
+    Note the move to [b `R] in the conclusion: now we should play at least one step of the coinductive game for all pairs inserted in the candidate.
+    Also note that [H] may be an introduction pattern.
+ *)
 
 Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
   gfp_intro' R; pattern (elem R); revert R;
@@ -364,10 +399,38 @@ Ltac check_accumulate_concl R :=
   tryif assert_succeeds
           (repeat lazymatch goal with |- forall _ : _, _ => intro end;
            lazymatch goal with
-           | |- context [@body _ _ _ _ _ (elem R)] => idtac
+           | |- context [@body _ _ _ (elem R)] => idtac
+           | |- context [@elem _ _ _ (@chain_b _ _ _ R)] => idtac
            end)
   then fail "[coinduction] accumulate expects a conclusion about the candidate itself, as in `elem c u v` (conjunctions and quantifiers are fine); this one applies a function to the candidate"
   else idtac.
+
+(** ** accumulating knowledge in a proof by enhanced coinduction *)
+
+(** when the goal is of the shape, typically obtained after starting a proof by coinduction and    performing one step of the coinductive game:
+
+    R: Chain b
+    H: forall x y, `R u v
+    H': forall x y z, P -> `R s t
+    --------------------------------
+    forall i j, `R p q
+
+    (more complex alternations of quantifiers/conjunctions/implications being allowed in both hypotheses and conclusion)
+
+    [accumulate H''] moves to a goal
+
+    R: Chain b
+    H: forall x y, `R u v
+    H': forall x y z, P -> `R s t
+    H'': forall i j, `R p q
+    --------------------------------
+    forall i j, b `R p q
+
+    The conclusion has been saved as an hypothesis [H''],
+    and a [b] has been inserted in the conclusion, so that we have to play at least one step of the coinductive game on the added pairs
+
+    Like for [coinduction], [H''] maybe an introduction pattern.
+ *)
 
 Tactic Notation "accumulate" hyp(R) simple_intropattern(H) :=
   check_accumulate_concl R; xaccumulate0 R; intros H.
@@ -388,46 +451,7 @@ Tactic Notation "accumulate" simple_intropattern(H) :=
   1 where [s] replaces [b], with names intact.
 *)
 
-Section s.
-Context {X} {CL : CompleteLattice X}.
-Notation mon_Xrel := (mon (X -> X -> Prop)).
 
-Lemma inf_closed_cap_elem {A} {C : CompleteLattice A} (P: A -> Prop):
-  Proper (leq ==> leq) P -> inf_closed P ->
-  forall x y, P x -> P y -> P (cap x y).
-Proof.
-  intros Hmon Hinf x y HPx HPy.
-  assert (Hinfxy : P (inf (fun z => z = x \/ z = y))).
-  { apply Hinf. cbn; red. intros a [<- | <-]; assumption. }
-  eapply Hmon; [|apply Hinfxy].
-  eapply cap_spec.
-  split; apply leq_infx; tauto.
-Qed.
-
-Definition Symmetrical' {A} `(P : (A -> A -> Prop) -> Prop) := forall x, P x -> P (converse x).
-
-Lemma by_symmetry' {b : mon_Xrel} (s: mon_Xrel) (S: Symmetrical converse b s) {R: Chain b}
-(P : (X -> X -> Prop) -> Prop)
-(Hmon : Proper (leq ==> leq) P)
-(Hic : inf_closed P)
-(Hsymm : Symmetrical' P)
-: P (s (elem R)) <= P (b (elem R)).
-Proof.
-  transitivity (P (cap (s (elem R)) (converse (s (elem R))))).
-  - intros HP.
-  apply inf_closed_cap_elem.
-  + apply Hmon.
-  + apply Hic.
-  + apply HP.
-  + now apply Hsymm.
-  - apply Hmon.
-    intros x y Hcap.
-    eapply (@symmetrical_chain _ _ _ _ _ _ S R).
-  apply Hcap.
-Qed.
-
-
-End s.
 
 (** the [b] used to recognise the application in the goal is read off the type
       of the supplied [R]. *)
@@ -435,8 +459,8 @@ Ltac begin_symmetry R :=
   lazymatch type of R with
   | @Chain _ _ ?b =>
       lazymatch goal with
-      | |-context [@body ?X ?Y ?LX ?LY b ?x] =>
-          pattern (@body X Y LX LY b x);
+      | |-context [@body ?X ?LX b ?x] =>
+          pattern (@body X LX b x);
           eapply by_symmetry'
       | _ => fail "could not find an application of the coinductive function in the goal"
       end
@@ -481,6 +505,18 @@ Ltac apply_by_symmetry R tac :=
 
 (* todo build to use ltac rather than notation, as notation is harder to find *)
 Ltac default_sym_tac := solve [clear;firstorder] || fail "could not get symmetry automatically".
+(** reasoning on symmetric candidates with symmetric functions *)
+(** this tactic makes it possible to play only half of the coinductive game in cases where both the game and the current goal are symmetric:
+    - that the game is symmetric is inferred using the typeclasse [Symmetrical]
+    - that the goal is symmetric is proven using the given tactic (by default, [firstorder])
+    the goal should be of the form
+    [forall x y..., b `R u v] 
+    it moves to a goal of the form
+    [forall x y..., s `R u v] 
+    (where [R: Chain b] with [b] the function for the coinductive game, and [s] the function for the `half of [b]')
+    conjunctions are also allowed, like in the other tactics)
+ *)
+
 Tactic Notation "symmetric" hyp(R) "using" tactic(tac) :=
   apply_by_symmetry R tac.
 
@@ -499,7 +535,46 @@ Tactic Notation "symmetric" :=
   | _ => fail "could not find coinductive candidate of form `Chain _`"
   end.
 
-(** performing a single step (equivalent to [accumulate _], except that we do
-      not deal with composite candidates and the coinductive proof need not be
-      started) *)
-Ltac step := apply sub_bChain; simpl body.
+(** * Stepping
+
+    [step] plays one step of the coinductive game in the goal: [gfp b] becomes
+    [b (gfp b)], and a chain element [`R] becomes [b `R]. [step in H] does the
+    same to a hypothesis, [unstep] and [unstep in H] go the other way. Unlike
+    [apply sub_bChain] these go through [leq] in the ambient lattice, so they
+    work at any arity. They do not reduce [body]; follow with [simpl body] or
+    [cbn [body]] if that is wanted. *)
+
+Ltac expose_gfp_in h :=
+  lazymatch type of h with
+  | context [@gfp _ _ _] => idtac
+  | _ =>
+      tryif progress (repeat red in h) then expose_gfp_in h
+      else fail 1 "[step] no greatest fixpoint in this hypothesis"
+  end.
+
+Ltac step_core :=
+  match goal with
+  | |- context [gfp ?b]  => apply (pfp_gfp b)
+  | |- context [elem ?R] => first [apply (b_chain R) | apply (gfp_bchain R)]
+  end.
+Ltac step := first [ step_core | expose_gfp; step_core ].
+
+Ltac step_in_core h :=
+  match type of h with
+  | context [gfp ?b] => apply (gfp_pfp b) in h
+  end.
+Ltac step_in h := first [ step_in_core h | expose_gfp_in h; step_in_core h ].
+Tactic Notation "step" "in" ident(h) := step_in h.
+
+Ltac unstep_core :=
+  match goal with
+  | |- context [gfp ?b] => apply (gfp_pfp b)
+  end.
+Ltac unstep := first [ unstep_core | expose_gfp; unstep_core ].
+
+Ltac unstep_in_core h :=
+  match type of h with
+  | context [gfp ?b] => apply (pfp_gfp b) in h
+  end.
+Ltac unstep_in h := first [ unstep_in_core h | expose_gfp_in h; unstep_in_core h ].
+Tactic Notation "unstep" "in" ident(h) := unstep_in h.

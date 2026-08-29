@@ -31,6 +31,21 @@ Section s.
    transitivity (f x). now apply f, leq_infx.
    now apply HT. 
  Qed.
+ Lemma inf_closed_and (P Q: X -> Prop):
+   inf_closed P -> inf_closed Q -> inf_closed (fun x => P x /\ Q x).
+ Proof. apply inf_closed_cap. Qed.
+
+ Lemma inf_closed_cap_elem (P: X -> Prop):
+   Proper (leq ==> leq) P -> inf_closed P ->
+   forall x y, P x -> P y -> P (cap x y).
+ Proof.
+   intros Hmon Hinf x y HPx HPy.
+   assert (Hinfxy : P (inf (fun z => z = x \/ z = y))).
+   { apply Hinf. cbn; red. intros a [<- | <-]; assumption. }
+   eapply Hmon; [|apply Hinfxy].
+   eapply cap_spec.
+   split; apply leq_infx; tauto.
+ Qed.
    
 
  Variable b: mon X.
@@ -116,6 +131,9 @@ Section s.
  (** an instance of [gfp_chain] which is useful in some concrete use cases *)
  Lemma gfp_bchain (x: Chain): gfp <= b x.
  Proof. apply gfp_chain. Qed.
+
+ Lemma pfp_gfp: b gfp <= gfp.
+ Proof. apply b_chain. Qed.
 
 End s.
 Global Opaque gfp. 

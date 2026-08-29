@@ -331,30 +331,25 @@ End inf.
 Global Hint Resolve cap_l cap_r: core.
 
 
-(** * The complete lattice of monotone functions *)
+(** * The complete lattice of monotone endofunctions *)
 
-(** monotone functions between two complete lattices *)
-Record mon_h (X Y: Type) {LX: CompleteLattice X} {LY: CompleteLattice Y} :=
-  { body:> X -> Y;
+(** monotone endofunctions of a complete lattice *)
+Record mon (X: Type) {LX: CompleteLattice X} :=
+  { body:> X -> X;
     Hbody: Proper (leq ==> leq) body }.
-Arguments mon_h X Y {LX LY}.
-Arguments body {X Y LX LY}.
-Arguments Hbody {X Y LX LY}.
-
-Notation "[ X ⇒ Y ]" := (mon_h X Y)
-  (at level 0, X at level 200, Y at level 200): lattice.
-
-(** monotone endofunctions are the common special case *)
-Notation mon X := (mon_h X X).
+Arguments mon X {LX}.
+Arguments body {X LX}.
+Arguments Hbody {X LX}.
+Arguments Build_mon {_ _ _} _.
 
 Existing Instance Hbody.
-Instance Hbody' {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}
-  (f: [X ⇒ Y]): Proper (weq ==> weq) f.
+Instance Hbody' {X} {LX: CompleteLattice X}
+  (f: mon X): Proper (weq ==> weq) f.
 Proof. intros x y. rewrite 2weq_spec. now split; apply f. Qed.
 
 (** constant function *)
-Program Definition const {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}
-  (y: Y): [X ⇒ Y] := {| body _ := y |}.
+Program Definition const {X} {LX: CompleteLattice X}
+  (y: X): mon X := {| body _ := y |}.
 Next Obligation. intros ? ? ?. reflexivity. Qed.
 
 (** identity and composition
@@ -362,21 +357,19 @@ Next Obligation. intros ? ? ?. reflexivity. Qed.
     - [id ° f = f ° id = f], and
     - [f ° (g ° h) = (f ° g) ° h]
  *)
-Definition id {X} {LX: CompleteLattice X}: [X ⇒ X] :=
+Definition id {X} {LX: CompleteLattice X}: mon X :=
   {| body x := x;
      Hbody x y H := H |}.
 
-Definition comp {X Y Z}
-  {LX: CompleteLattice X} {LY: CompleteLattice Y} {LZ: CompleteLattice Z}
-  (f: [Y ⇒ Z]) (g: [X ⇒ Y]): [X ⇒ Z] :=
+Definition comp {X} {LX: CompleteLattice X} (f g: mon X): mon X :=
   {| body x := f (g x);
      Hbody x y H := Hbody f _ _ (Hbody g _ _ H) |}.
 Infix "°" := comp (at level 20): lattice.
 
 (** monotone functions form a complete lattice *)
 #[export] Program Instance CompleteLattice_mon
-  {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
-  CompleteLattice [X ⇒ Y] := {|
+  {X} {LX: CompleteLattice X}:
+  CompleteLattice (mon X) := {|
   weq := pointwise_relation X weq;
   leq := pointwise_relation X leq;
   sup' I P f := {| body x := sup' P (fun i => f i x) |};
@@ -408,66 +401,64 @@ Qed.
 
 (** monotone functions applied to infs/sups *)
 Section mon_apply.
- Context {X Y: Type} {LX: CompleteLattice X} {LY: CompleteLattice Y}.
+ Context {X: Type} {LX: CompleteLattice X}.
 
- Lemma mon_sup I (g: I -> X) (f: [X ⇒ Y]) P:
+ Lemma mon_sup I (g: I -> X) (f: mon X) P:
    sup' P (fun x => f (g x)) <= f (sup' P g).
  Proof. apply sup_spec. intros. apply f. now apply leq_xsup'. Qed.
- Lemma mon_cup (f: [X ⇒ Y]) x y: cup (f x) (f y) <= f (cup x y).
+ Lemma mon_cup (f: mon X) x y: cup (f x) (f y) <= f (cup x y).
  Proof. apply cup_spec; split; apply f; auto. Qed.
- Lemma mon_inf I (g: I -> X) (f: [X ⇒ Y]) P:
+ Lemma mon_inf I (g: I -> X) (f: mon X) P:
    f (inf' P g) <= inf' P (fun x => f (g x)).
  Proof. apply inf_spec. intros. apply f. now apply leq_infx'. Qed.
- Lemma mon_cap (f: [X ⇒ Y]) x y: f (cap x y) <= cap (f x) (f y).
+ Lemma mon_cap (f: mon X) x y: f (cap x y) <= cap (f x) (f y).
  Proof. apply cap_spec; split; apply f; auto. Qed.
 End mon_apply.
 
 
 Section mon_comp.
- Context {X Y Z W: Type}.
- Context {LX: CompleteLattice X} {LY: CompleteLattice Y}.
- Context {LZ: CompleteLattice Z} {LW: CompleteLattice W}.
+ Context {X: Type} {LX: CompleteLattice X}.
 
- Global Instance comp_leq: Proper (leq ==> leq ==> leq) (@comp X Y Z _ _ _).
+ Global Instance comp_leq: Proper (leq ==> leq ==> leq) (@comp X _).
  Proof. intros f f' Hf g g' Hg x. simpl. rewrite (Hg x). apply Hf. Qed.
- Global Instance comp_weq: Proper (weq ==> weq ==> weq) (@comp X Y Z _ _ _) :=
+ Global Instance comp_weq: Proper (weq ==> weq ==> weq) (@comp X _) :=
    op_leq_weq_2.
 
  (** trivial properties of composition *)
- Lemma compA (f: [Z ⇒ W]) (g: [Y ⇒ Z]) (h: [X ⇒ Y]): f ° (g ° h) = (f ° g) ° h.
+ Lemma compA (f: mon X) (g: mon X) (h: mon X): f ° (g ° h) = (f ° g) ° h.
  Proof. reflexivity. Qed.
- Lemma compIx (f: [X ⇒ Y]): id ° f = f.
+ Lemma compIx (f: mon X): id ° f = f.
  Proof. now case f. Qed.
- Lemma compxI (f: [X ⇒ Y]): f ° id = f.
+ Lemma compxI (f: mon X): f ° id = f.
  Proof. now case f. Qed.
 
  (** operations on monotone functions behave as expected on the left of
      compositions *)
- Lemma msup_o I (f: I -> [Y ⇒ Z]) P (h: [X ⇒ Y]):
+ Lemma msup_o I (f: I -> mon X) P (h: mon X):
    sup' P f ° h == sup' P (fun i => f i ° h).
  Proof. now intro. Qed.
- Lemma mcup_o (f g: [Y ⇒ Z]) (h: [X ⇒ Y]): (cup f g) ° h == cup (f ° h) (g ° h).
+ Lemma mcup_o (f g: mon X) (h: mon X): (cup f g) ° h == cup (f ° h) (g ° h).
  Proof. now intro. Qed.
- Lemma mbot_o (f: [X ⇒ Y]): (bot: [Y ⇒ Z]) ° f == bot.
+ Lemma mbot_o (f: mon X): (bot: mon X) ° f == bot.
  Proof. now intro. Qed.
- Lemma minf_o I (f: I -> [Y ⇒ Z]) P (h: [X ⇒ Y]):
+ Lemma minf_o I (f: I -> mon X) P (h: mon X):
    inf' P f ° h == inf' P (fun i => f i ° h).
  Proof. now intro. Qed.
- Lemma mcap_o (f g: [Y ⇒ Z]) (h: [X ⇒ Y]): (cap f g) ° h == cap (f ° h) (g ° h).
+ Lemma mcap_o (f g: mon X) (h: mon X): (cap f g) ° h == cap (f ° h) (g ° h).
  Proof. now intro. Qed.
- Lemma mtop_o (f: [X ⇒ Y]): (top: [Y ⇒ Z]) ° f == top.
+ Lemma mtop_o (f: mon X): (top: mon X) ° f == top.
  Proof. now intro. Qed.
 
  (** instead, only one inclusion holds in general when they are on the left *)
- Lemma o_msup I (f: I -> [X ⇒ Y]) P (h: [Y ⇒ Z]):
+ Lemma o_msup I (f: I -> mon X) P (h: mon X):
    sup' P (fun i => h ° f i) <= h ° sup' P f.
  Proof. intro. apply sup_spec. intros. apply h. eapply eleq_xsup; eauto. Qed.
- Lemma o_mcup (h: [Y ⇒ Z]) (f g: [X ⇒ Y]): cup (h ° f) (h ° g) <= h ° (cup f g).
+ Lemma o_mcup (h: mon X) (f g: mon X): cup (h ° f) (h ° g) <= h ° (cup f g).
  Proof. intro. apply (mon_cup h). Qed.
- Lemma o_minf I (f: I -> [X ⇒ Y]) P (h: [Y ⇒ Z]):
+ Lemma o_minf I (f: I -> mon X) P (h: mon X):
    h ° inf' P f <= inf' P (fun i => h ° f i).
  Proof. intro. apply inf_spec. intros. apply h. eapply eleq_infx; eauto. Qed.
- Lemma o_mcap (h: [Y ⇒ Z]) (f g: [X ⇒ Y]): h ° (cap f g) <= cap (h ° f) (h ° g).
+ Lemma o_mcap (h: mon X) (f g: mon X): h ° (cap f g) <= cap (h ° f) (h ° g).
  Proof. intro. apply (mon_cap h). Qed.
 
   (* todo: nicer inf_spec *)
@@ -484,13 +475,13 @@ Section mon_comp.
 End mon_comp.
 Global Opaque cup bot cap top.  (* TODO: check that we still need this *)
 
-(** application as a function [ [X ⇒ Y] -> X -> Y ] is monotone in its two
+(** application as a function [ mon X -> X -> X ] is monotone in its two
     arguments *)
-#[export] Instance app_leq {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
- Proper (leq ==> leq ==> leq) (@body X Y _ _).
+#[export] Instance app_leq {X} {LX: CompleteLattice X}:
+ Proper (leq ==> leq ==> leq) (@body X _).
 Proof. intros f g fg x y xy. transitivity (f y). now apply f. now apply fg. Qed.
-#[export] Instance app_weq {X Y} {LX: CompleteLattice X} {LY: CompleteLattice Y}:
- Proper (weq ==> weq ==> weq) (@body X Y _ _) := op_leq_weq_2.
+#[export] Instance app_weq {X} {LX: CompleteLattice X}:
+ Proper (weq ==> weq ==> weq) (@body X _) := op_leq_weq_2.
 
 (** If X and Y are members of a complete lattice, so is X * Y. *)
 Section product. 
@@ -528,15 +519,6 @@ Proof. firstorder. Qed.
 Lemma snd_monotone : Proper (@leq (X * Y) _ ==> @leq Y _) snd. 
 Proof. firstorder. Qed.
 
-Definition fst_mon : [X * Y ⇒ X] :=
-  {| body  := fst
-  ;  Hbody := fst_monotone
-  |}.
-Definition snd_mon : [X * Y ⇒ Y] :=
-  {| body  := snd
-  ;  Hbody := snd_monotone
-  |}.
-
 End product.
 (* TODO: make these instances *)
 Add Parametric Morphism (X Y : Type)
@@ -557,7 +539,7 @@ Proof. firstorder. Qed.
 
 Section involutions.
   
- Context {X} {L: CompleteLattice X} {i: [X ⇒ X]}.
+ Context {X} {L: CompleteLattice X} {i: mon X}.
   
  Class Involution := invol: i ° i == id.
  
@@ -569,7 +551,7 @@ Section involutions.
  Lemma switch x y: i x <= y <-> x <= i y.
  Proof. split; (intro H; apply i in H; now rewrite invol' in H). Qed.
 
- Lemma Switch (f g: [X ⇒ X]): i ° f <= g <-> f <= i ° g.
+ Lemma Switch (f g: mon X): i ° f <= g <-> f <= i ° g.
  Proof. split; (intros H x; apply switch, H). Qed.
  
  Lemma invol_fixed x: i x <= x <-> i x == x.
@@ -631,41 +613,3 @@ Lemma body_mono {X} {L: CompleteLattice X} (b: mon X) (P: X -> Prop):
 Proof. intros HP x y xy. apply HP. now apply b. Qed.
 
 (* tactics *)
-
-(* the [mon] database TODO DOCUMENT. *)
-Create HintDb mon discriminated.
-#[export] Hint Resolve all_mono and_mono body_mono : mon.
-#[export] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
-
-#[export] Hint Extern 2 (Proper (leq ==> leq) _) =>
-  (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
-
-(* todo make this bound less of a hack *)
-(* this catches a particular corner case which is relevant in the study of
-   active-only up-to techniques. 
-
-   the corner case is a hypothesis in which the candidate sits under a monotone
-   function it is not the chain of, as in [ba (elem c) u v] with [c : Chain b].
-   that predicate is indeed monotone in the candidate, but [auto] cannot see it
-   because using [body_mono] would mean reading [fun w => ba w u v] as [fun w =>
-   Q (ba w)], and there is no first-order way to guess [Q]. so we peel the
-   arguments off, then walk back out through each monotone function in turn
-   using its own [Hbody]. we use [match] rather than [lazymatch] so nesting like
-   [ba (b w)] can backtrack onto the inner function first. the bound stops the
-   wrapping from looping. *)
-Ltac mon_lift H n :=
-  first [ solve [assumption | apply H; assumption]
-        | lazymatch n with
-          | S ?m =>
-              match goal with
-              | |- context [@body _ _ _ _ ?b _] => mon_lift (Hbody b _ _ H) m
-              end
-          end ].
-
-#[export] Hint Extern 4 (Proper (leq ==> leq) _) =>
-  (solve [ repeat intro;
-           lazymatch goal with H : _ <= _ |- _ => mon_lift H 4 end ]) : mon.
-
-Ltac monauto :=
-  solve [auto 20 with mon] ||
-   fail "`monauto` could not solve this goal.". 

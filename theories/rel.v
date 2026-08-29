@@ -175,3 +175,31 @@ Section s.
    Proof. intro. apply Proper_chain. intros. apply Sym_Proper_chain; auto. Qed.
   End sym. 
 End s.
+
+Section by_symmetry.
+Context {X} {CL : CompleteLattice X}.
+Notation mon_Xrel := (mon (X -> X -> Prop)).
+
+Definition Symmetrical' {A} `(P : (A -> A -> Prop) -> Prop) := forall x, P x -> P (converse x).
+
+Lemma by_symmetry' {b : mon_Xrel} (s: mon_Xrel) (S: Symmetrical converse b s) {R: Chain b}
+(P : (X -> X -> Prop) -> Prop)
+(Hmon : Proper (leq ==> leq) P)
+(Hic : inf_closed P)
+(Hsymm : Symmetrical' P)
+: P (s (elem R)) <= P (b (elem R)).
+Proof.
+  transitivity (P (cap (s (elem R)) (converse (s (elem R))))).
+  - intros HP.
+  apply inf_closed_cap_elem.
+  + apply Hmon.
+  + apply Hic.
+  + apply HP.
+  + now apply Hsymm.
+  - apply Hmon.
+    intros x y Hcap.
+    eapply (@symmetrical_chain _ _ _ _ _ _ S R).
+  apply Hcap.
+Qed.
+
+End by_symmetry.
