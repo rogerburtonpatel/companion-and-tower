@@ -29,16 +29,14 @@ total LOC (as calculated by \code{rocq wc}):
 
 \input{figures/fig-loc}
 
-\note{\textbf{The net-gain claim does not survive measurement, but something
-sharper does.} By \code{rocq wc}, paco $\to$ old port is proof $-754$ lines, spec
-$+333$, total $-421$, and $-18$ including comments. So the total did not rise; it
-was a wash. Two replacements that the data does support, either of which is a
-stronger sentence than the original: (1) tactic surface \emph{nearly tripled},
-$4\,586 \to 12\,754$ characters, $+178\%$; (2) tactic definitions in
-\code{theories/} went $77 \to 141$. Also note \code{rocq wc} is not sound on
-these files and its spec/proof split is wrong in both directions; see
-\code{paper-data/rocqwc-unsound.md}. The figures quoted throughout this paper
-come from the corrected classifier, not from \code{rocq wc}.}
+\note{\textbf{Total size never rose, at either port.} Counting every non-blank
+comment-free line once, the whole development goes $20\,871 \to 20\,455 \to
+20\,156$, which is $-2.0\%$ at the first port and $-3.4\%$ after the rewrite.
+\Cref{fig:loc} plots it. The \code{rocq wc} figure the outline relied on is not
+sound on these files in either direction; see
+\code{paper-data/rocqwc-unsound.md}. What did go the wrong way at the first
+port is the tactic surface, which \emph{nearly tripled}, $4\,586 \to 12\,754$
+characters, $+178\%$. That is the sentence this paragraph wants.}
 
 We can see in \Cref{fig:loc} that nearly all of this stems from definitions. Why?
 

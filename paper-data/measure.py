@@ -20,10 +20,15 @@ ROOT = os.path.dirname(ROOT)                      # .../coinduction
 ITREES = os.environ.get("ITREES") or os.path.join(ROOT, "InteractionTrees")
 PACO   = os.environ.get("PACO")   or os.path.join(ROOT, "itrees-old/InteractionTrees")
 
+# Every checkpoint is a committed revision, so a branch switch in the source
+# repository cannot change what is measured. PACO is a separate checkout whose
+# master is the upstream paco tree.
 CHECKPOINTS = [
-    ("paco",     PACO,   "WORKTREE"),   # ITrees on paco
-    ("old_port", ITREES, "d34881b"),    # ported, against the released library
-    ("new_port", ITREES, "WORKTREE"),   # ported, against the rewritten library
+    ("paco",     PACO,   "bd356ec"),    # ITrees on paco, upstream master
+    ("old_port", ITREES, "d34881b"),    # branch new-coinduction: ported against
+                                        # the released rocq-coinduction
+    ("new_port", ITREES, "cpp"),        # branch cpp: ported against the
+                                        # rewritten library
 ]
 TREES = ["theories", "extra"]
 

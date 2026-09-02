@@ -14,15 +14,20 @@ The first run creates `.venv` and installs the pinned `requirements.txt`. The
 `--remeasure` step is the slow one; it materialises each of the three checkouts
 into a temp directory and re-counts. Use it when a checkout has moved.
 
-Output lands in `out/`:
+One chart per measure, each with two rows: `theories/` alone, then the whole
+development. Every chart is zero-based and labelled with the value and the
+change against the paco baseline. Output lands in `out/` as both `.png` (slide
+resolution) and `.svg` (vector, for Keynote and Google Slides):
 
-| file | what |
+| file | measure |
 |---|---|
-| `tactic-surface.csv` | tidy numbers, one row per scope/checkpoint/measure |
-| `tactic-surface.png` | chart at slide resolution |
-| `tactic-surface.svg` | same chart as vector, for Keynote and Google Slides |
+| `tactic.*` | characters of coinduction-driving Ltac |
+| `proof.*`  | characters of proof |
+| `def.*`    | characters of definition |
+| `total.*`  | total lines of code, every non-blank comment-free line counted once |
 
-The table also prints to stdout, formatted to paste into a slide.
+Each chart's table also prints to stdout, formatted to paste into a slide.
+`./charts.py tactic` builds just one; `--no-chart` prints the tables only.
 
 ## What "tactic surface" means
 

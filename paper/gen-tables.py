@@ -34,9 +34,11 @@ with open("data/derived.csv", "w", newline="") as f:
 idx = {(r["checkpoint"], r["scope"]): r for r in rows}
 with open("data/chart.csv", "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["idx", "label", "tactic_lines", "nontactic_def_lines", "proof_lines"])
+    w.writerow(["idx", "label", "tactic_lines", "nontactic_def_lines",
+                "proof_lines", "code_lines"])
     for i, cp in enumerate(["paco", "old_port", "new_port"]):
         r = idx[(cp, "main+extra")]
         w.writerow([i, LABEL[cp], r["tactic_lines"],
-                    int(r["def_lines"]) - int(r["tactic_lines"]), r["proof_lines"]])
+                    int(r["def_lines"]) - int(r["tactic_lines"]), r["proof_lines"],
+                    r["code_lines"]])
 print(open("data/headline.csv").read())

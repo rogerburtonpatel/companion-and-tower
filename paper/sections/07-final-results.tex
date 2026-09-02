@@ -10,21 +10,24 @@ is prose, only the tables and what they say.}
 \input{figures/tbl-headline}
 \input{figures/tbl-timing}
 
-\note{\textbf{Tactic surface.} In \code{theories/} the rewrite finishes below the
-paco baseline on all three measures: $16 \to 12$ names ($-25\%$), $118 \to 108$
-lines ($-8.5\%$), $4\,181 \to 3\,787$ characters ($-9.4\%$). The first port went
-the wrong way on all three. Nine tactic families disappear from \code{theories/}
-outright between the two ports; three of them (\code{inf_closed_auto},
-\code{monauto}, \code{tower induction}) went because the library's own versions
-became good enough to reach the files that needed them.}
+\note{\textbf{Tactic surface.} The rewrite finishes well below the paco baseline
+at both scopes: in \code{theories/}, $16 \to 11$ names ($-31\%$), $118 \to 66$
+lines ($-44\%$), $4\,181 \to 2\,283$ characters ($-45.4\%$); across the whole
+development, $4\,586 \to 2\,545$ characters ($-44.5\%$). The first port went the
+wrong way on every one of them. Ten tactic families disappear from
+\code{theories/} outright between the two ports; three of them
+(\code{inf_closed_auto}, \code{monauto}, \code{tower induction}) went because the
+library's own versions became good enough to reach the files that needed them,
+and the \code{to_mon} family collapsed into a single shared driver.}
 
-\note{\textbf{The residual regression is one file.} Across
-\code{theories/}~+~\code{extra/}, tactic characters finish $2.1\%$ \emph{above}
-the paco baseline rather than below. Almost all of the residue is
-\code{extra/IForest.v}, which carries nineteen \code{\#[local]} definitions that
-near-copy the \code{Eq/Eqit.v} block, differing only by a per-development list of
-names. Deduplicating that one file would put the whole development under the
-baseline. Worth stating explicitly rather than reporting the aggregate.}
+\note{\textbf{The downstream developments now cost less than they did under
+paco.} \code{extra/} carried $405$ characters of coinduction-driving Ltac at the
+paco checkpoint, $4\,217$ after the first port, and $262$ now. The reason is that
+the per-functor \code{to_mon} blocks, which were the whole of the regression,
+are gone: each development states one \code{reflexivity} lemma and registers it,
+and a single driver in \code{Basics/Utils.v} does the folding. This is the
+clearest single piece of evidence that the first port's cost was implementation
+and not theory.}
 
 \note{\textbf{Characters move about three times as far as lines.} Proof lines
 fall $4.1\%$ across the whole development while proof characters fall $11.8\%$;

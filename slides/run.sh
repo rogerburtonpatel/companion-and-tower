@@ -22,4 +22,4 @@ if [ "${1:-}" = "--remeasure" ]; then
   ( cd ../paper-data && ./measure.py )
 fi
 
-./.venv/bin/python tactic_surface.py "$@"
+./.venv/bin/python charts.py "$@"

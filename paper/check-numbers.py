@@ -5,7 +5,9 @@ data. Exits non-zero if any claim has drifted.
 The tables and the chart read the CSVs at compile time and cannot drift. This
 script covers the figures that appear inside sentences, which are macros in
 preamble.tex, plus the hand-written library table."""
-import csv, sys
+import csv, os, sys
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 m = {(r["checkpoint"], r["scope"]): r for r in csv.DictReader(open("data/metrics.csv"))}
 g = lambda cp, sc, f: int(m[(cp, sc)][f])
@@ -37,13 +39,18 @@ chk("s5 tactic-line rise", g("old_port","main+extra","tactic_lines") - g("paco",
 
 # section 7
 chk("s7 drop both", -pct(g("paco","main+extra","tactic_chars"), g("new_port","main+extra","tactic_chars")), 44.5)
-chk("s7 def lines main", -pct(g("paco","main","def_lines"), g("new_port","main","def_lines")), 4.3)
+chk("s7 def lines main", -pct(g("paco","main","def_lines"), g("new_port","main","def_lines")), 4.4)
 chk("s7 def chars main", -pct(g("paco","main","def_chars"), g("new_port","main","def_chars")), 3.5)
 chk("s7 def lines both", -pct(g("paco","main+extra","def_lines"), g("new_port","main+extra","def_lines")), 2.6)
 chk("s7 def chars both", -pct(g("paco","main+extra","def_chars"), g("new_port","main+extra","def_chars")), 2.6)
 chk("s7 proof lines main", -pct(g("paco","main","proof_lines"), g("new_port","main","proof_lines")), 1.6)
-for cp, want in [("paco", 8726), ("old_port", 8574), ("new_port", 8556)]:
+for cp, want in [("paco", 8726), ("old_port", 8574), ("new_port", 8554)]:
     chk(f"s7 nontactic {cp}", nd(cp), want, 0)
+
+chk("total lines main", -pct(g("paco","main","code_lines"), g("new_port","main","code_lines")), 2.9)
+chk("total lines both", -pct(g("paco","main+extra","code_lines"), g("new_port","main+extra","code_lines")), 3.4)
+chk("total lines both, first port",
+    -pct(g("paco","main+extra","code_lines"), g("old_port","main+extra","code_lines")), 2.0)
 
 # the library table, section 6
 lib = {r["component"]: r for r in csv.DictReader(open("data/library.csv"))}
