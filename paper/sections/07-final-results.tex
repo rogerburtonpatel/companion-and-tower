@@ -1,0 +1,48 @@
+\section{Results}
+\label{sec:results}
+
+\note{\textbf{This section is a container, not outline content.} The outline
+reports results inline in \Cref{sec:initial} and \Cref{sec:rewrite}. The measured
+data has to appear somewhere, so it is parked here; fold it back into those
+sections if you would rather not have a separate results section. Nothing below
+is prose, only the tables and what they say.}
+
+\input{figures/tbl-headline}
+\input{figures/tbl-timing}
+
+\note{\textbf{Tactic surface.} In \code{theories/} the rewrite finishes below the
+paco baseline on all three measures: $16 \to 12$ names ($-25\%$), $118 \to 108$
+lines ($-8.5\%$), $4\,181 \to 3\,787$ characters ($-9.4\%$). The first port went
+the wrong way on all three. Nine tactic families disappear from \code{theories/}
+outright between the two ports; three of them (\code{inf_closed_auto},
+\code{monauto}, \code{tower induction}) went because the library's own versions
+became good enough to reach the files that needed them.}
+
+\note{\textbf{The residual regression is one file.} Across
+\code{theories/}~+~\code{extra/}, tactic characters finish $2.1\%$ \emph{above}
+the paco baseline rather than below. Almost all of the residue is
+\code{extra/IForest.v}, which carries nineteen \code{\#[local]} definitions that
+near-copy the \code{Eq/Eqit.v} block, differing only by a per-development list of
+names. Deduplicating that one file would put the whole development under the
+baseline. Worth stating explicitly rather than reporting the aggregate.}
+
+\note{\textbf{Characters move about three times as far as lines.} Proof lines
+fall $4.1\%$ across the whole development while proof characters fall $11.8\%$;
+in \code{theories/}, $1.6\%$ against $8.4\%$. Enhanced coinduction did not mainly
+delete proof lines, it made the surviving lines shorter. This is the argument for
+reporting both, and it is a finding the paper would have missed on a line count
+alone.}
+
+\note{\textbf{The two halves moved in opposite directions.} \code{extra/} gained
+more proof reduction than \code{theories/} did, and also paid the most tactic
+surface to adopt the library. The downstream users had the most to gain and the
+most to pay.}
+
+\note{\textbf{Build time} (\Cref{tab:timing}). The first port cost $+25.6\%$
+against paco; the rewrite recovers it to $+4.1\%$. Diagnosed causes of the first
+port's regression, none inherent to enhanced coinduction: the port dropped the
+explicit \code{eauto} depth annotations the paco code carried, leaving the
+default depth whose last two levels go to the standard library's boolean
+machinery; \code{inv} gained a \code{try easy} and is called at $1118$ sites; and
+$33$ sites changed \code{hinduction ... before r} to \code{... before E},
+reverting the whole context instead of the tail.}

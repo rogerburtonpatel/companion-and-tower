@@ -1,0 +1,7 @@
+checkpoint,scope,tactic_lines,nontactic_def_lines,proof_lines,tactic_chars,nontactic_def_chars,proof_chars
+paco,main,118,5752,6231,4181,209535,176031
+paco,main+extra,127,8726,12018,4586,349439,399700
+old_port,main,240,5580,6119,8537,204747,160788
+old_port,main+extra,360,8574,11521,12754,342472,351873
+new_port,main,66,5549,6133,2283,203898,161372
+new_port,main+extra,71,8556,11531,2545,342406,352792

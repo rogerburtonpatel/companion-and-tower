@@ -1,0 +1,37 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\note{\textbf{This section is a placement, not new content.} It holds the
+measurement paragraph that sat above the abstract in the outline, which is
+methodology and belongs here. The text below is that paragraph verbatim.}
+
+Metric is how many paco-specific newly-needed tactics there were before, and how
+many of that kind for the new library there are now. We should measure this in
+lines and characters of ltac for each of these as well.
+
+We also want total lines of proof and definition, as well as characters of proof
+and definition.
+
+The three checkpoints are: paco version, old port, new port.
+
+\note{\textbf{What the released measurement actually does}, for whatever of this
+you want to keep. \emph{Checkpoints:} \cpaco{} is ITrees on paco; \cold{} is the
+port against the released library; \cnew{} is the port against the rewritten one.
+Two scopes are reported separately, \code{theories/} alone and
+\code{theories/}~+~\code{extra/}, because they move in opposite directions on
+tactic surface. \emph{Tactic counting} uses three conventions: the unit is the
+name a user types (\code{step} and \code{step in} are one name); a private helper
+folds into the name it serves; a name defined in several files counts once, with
+every copy counted in the line and character totals. Membership is curated by
+hand, not grepped, because a name-based scan was wrong three times in this work.
+\emph{Lines} are counted comment-free with whitespace stripped; blank lines do
+not count. \emph{Note that \code{Ltac} is specification for the classifier}, so
+tactic definitions are counted inside the definition columns. Several claims in
+\Cref{sec:initial} depend on separating them out.}
+
+\note{\textbf{Build time is measured and is not in the outline.} Consider a
+subsection here for the protocol, since it changed the answer three times:
+\code{make TIMED=1} leaves timing artifacts in one tree and not another; blocked
+ordering plus machine warm-up manufactures a difference that is not real, so runs
+must interleave; and a single run cannot resolve a two-second effect on a
+ninety-second build. Results are in \Cref{tab:timing}.}

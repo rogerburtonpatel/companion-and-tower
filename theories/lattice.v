@@ -592,7 +592,7 @@ Section involutions.
 End involutions.
 Arguments Involution {_ _} _.
 
-(** ** structural lemmas for monotonicity *)
+(** ** structural lemmas for (automatic) monotonicity *)
 
 Lemma all_mono {X} {L: CompleteLattice X} A (P: A -> X -> Prop):
   (forall a, Proper (leq ==> leq) (P a)) ->
@@ -607,9 +607,90 @@ Proof.
   now apply (HP x y xy). now apply (HQ x y xy).
 Qed.
 
+(** two lemmas that let [auto] walk into an applied candidate. 
+
+    a goal such as [Proper (leq ==> leq) (fun x => ba x u v)] cannot be read as
+    [fun x => Q (ba x)] by first-order unification, because there is no way to
+    guess [Q]. But this structure is needed for automatic obligation discharge
+    in proofs by [ptower], so we use a small workaround. 
+
+    stated on [leq] instead of on [Proper], the same fact peels one
+    argument at a time and every step is first-order. *)
+Lemma app_mono {A} {Y} {LY: CompleteLattice Y} (x y: A -> Y) (a: A):
+  x <= y -> x a <= y a.
+Proof. intro H. apply H. Qed.
+
+Lemma body_leq {X} {LX: CompleteLattice X} (b: mon X) (x y: X):
+  x <= y -> b x <= b y.
+Proof. apply Hbody. Qed.
+
 (** through a monotone function applied to the candidate, as in [b R u v] *)
 Lemma body_mono {X} {L: CompleteLattice X} (b: mon X) (P: X -> Prop):
   Proper (leq ==> leq) P -> Proper (leq ==> leq) (fun x => P (b x)).
 Proof. intros HP x y xy. apply HP. now apply b. Qed.
 
-(* tactics *)
+(* the [mon] database *)
+(* in both proofs by coinduction and in setting up definitions, it is often
+necessary to prove monotonicity of a given function.
+
+This hint database supports a tactic, [monauto], which is used to discharge that
+obligation whenever possible. In practice, this performs well: see 
+<link to paper>. 
+*)
+
+Create HintDb mon discriminated.
+#[global] Hint Resolve all_mono and_mono body_mono : mon.
+#[global] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
+
+(** unfolding [Proper] turns the goal into [leq], where [app_mono] peels one
+        argument at a time and [body_leq] steps out through each monotone
+        function. because every step is first-order, no bound on arity or
+        nesting depth is needed. *)
+
+#[global] Hint Unfold Proper respectful : mon.
+#[global] Hint Resolve app_mono body_leq : mon.
+
+(** the terminal step. a pointwise [leq] is a [forall] over the arguments, so
+    one [apply] discharges any arity, including the dependent applications that
+    [app_mono] cannot peel one at a time. *)
+#[global] Hint Extern 3 (_ <= _) =>
+  (match goal with H: _ <= _ |- _ => apply H end) : mon.
+
+(* [functor_mono], with its helper [induct_on_presmise], is a tactic for solving
+   a monotonicity obligation for an inductive [b]. 
+*)
+
+Ltac induct_on_premise :=
+  once (match reverse goal with
+        | H: context [?rel _] |- context [?rel] => induction H
+        end).
+
+Ltac functor_mono :=
+  solve [ cbv; intros;
+          solve [ induct_on_premise; try econstructor; eauto 5 ] ].
+
+Ltac monauto :=
+  solve [auto 20 with mon] ||
+  functor_mono ||
+   fail "`monauto` could not solve this goal.".
+
+(* TODO REMOVE *)
+(* Section homework. 
+From Stdlib Require Import ZArith.
+Open Scope Z_scope. 
+Open Scope lattice. 
+Context {CZ : CompleteLattice Z}
+  {A B : Z -> Prop}. 
+Definition AplusB : Z -> Prop := 
+  (fun x => exists a b, A a /\ B b /\ x = a + b).
+
+Goal sup A + sup B == sup AplusB. 
+apply antisym. shelve. 
+apply sup_spec. intros i HA. 
+inversion HA as (a & b & HAa & HBb & Hplus). subst. 
+ (*this is true  *) admit. 
+Unshelve.
+Search sup'.  
+apply leq_xsup. 
+
+End homework.  *)

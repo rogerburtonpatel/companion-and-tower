@@ -1,0 +1,32 @@
+\section{Introduction}
+\label{sec:intro}
+
+Coinductive techniques\ldots{} Such techniques exist in proof assistants at two
+levels: foundational and abstracted. Foundational is paco/gpaco~\cite{paco,gpaco},
+enhanced coinduction~\cite{pous-companion,schafer-smolka}; abstracted is
+itrees~\cite{itrees} and ctrees~\cite{ctrees}.
+
+Larger developments are often built off of abstraction, but sometimes use
+low-level reasoning (Vellvm~\cite{vellvm} using paco proofs).
+
+We rewrote itrees from paco to enhanced coinduction, expecting large
+improvements.
+
+Some improvements, but disappointing.
+
+So we rewrote the enhanced coinduction library to upstream a lot of desired
+behavior that was duplicated in itrees.
+
+With this, we saw a \gap{\%} improvement.
+\note{Pick which number carries the headline here. Candidates, all measured:
+tactic characters in \code{theories/} $-9.4\%$ against the paco baseline (and
+$-56\%$ against the first port); proof characters $-8.4\%$ in \code{theories/},
+$-11.8\%$ overall; build time recovering from $+25.6\%$ to $+4.1\%$.}
+
+The documentation of this study, and the new enhanced coinduction and itrees
+libraries, are our primary contribution.
+
+\note{\textbf{Add an explicit contributions list at the end of this section.}
+CPP reviewers look for one. The four that the material supports: (1) the
+refactoring itself, (2) the negative result from the first port, (3) the
+rewritten library, (4) the three-checkpoint quantitative evaluation.}

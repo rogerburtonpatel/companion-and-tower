@@ -1,0 +1,35 @@
+Coinductive reasoning is central to mechanized semantics, and the Rocq Proof
+Assistant offers several abstractions to support it. Parameterized coinduction
+(paco) underlies the Interaction Trees (ITrees) library, while enhanced
+coinduction, most recently formulated through the tower induction principle over
+the companion, promises greater simplicity and better compositionality of up-to
+techniques. We evaluate enhanced coinduction at scale by refactoring the ITrees
+library from paco to a tower-based enhanced coinduction library. The exercise
+revealed weaknesses in the existing enhanced coinduction implementation and
+prompted fully rewriting it. The new library eliminates the OCaml plugin in
+favor of a pure Gallina and Ltac formulation, reduces the codebase by 62\%,
+extends documentation and test coverage, and fixes several latent bugs along the
+way. Re-integrating the rewritten library into ITrees validates the approach.
+\gap{``Coinductive proofs shrink by N\% in lines of code, and individual lemmas
+that previously required multi-step paco incantations now follow from a single
+application of tower induction.'' Data now exists for this sentence. Measured:
+proof text falls $8.4\%$ in \code{theories/} and $11.8\%$ across the whole
+development; proof \emph{lines} fall only $1.6\%$ and $4.1\%$, so the
+lines-of-code framing understates it by about $3\times$ and characters is the
+stronger number. Coinduction-specific tactic names go $16 \to 12$ in
+\code{theories/}. \Cref{fig:example} is a candidate for the ``single application
+of tower induction'' half.}
+These results suggest that tower-based enhanced coinduction is not only a
+theoretical simplification but a practical improvement for large coinductive
+developments. We describe the design decisions behind the rewrite and draw
+lessons for coinduction library design in Rocq.
+
+\note{\textbf{``reduces the codebase by 62\%'' needs a referent, and the closest
+measure now reads 65\%.} The tactic implementation, meaning \code{tactics.v} plus
+the OCaml plugin it called, goes $229 + 307 = 536$ lines to $188$, which is
+$-65\%$. The library as a whole goes the other way, $1\,395 \to 1\,485$ core
+lines ($+6\%$), because tests grew $84 \to 328$ and comments $370 \to 455$.
+Counting the deleted plugin against the old total, $1\,702 \to 1\,485$ is
+$-13\%$. So 62\% is defensible for the tactic implementation and is now
+conservative; it is not defensible for ``the codebase''. \Cref{tab:library} has
+all three framings.}

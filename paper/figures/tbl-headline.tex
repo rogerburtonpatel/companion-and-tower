@@ -1,0 +1,34 @@
+%% The headline table, read straight from data/metrics.csv so it cannot drift
+%% from the measurement script's output.
+\begin{table*}[t]
+\caption{The three checkpoints on every measure. \emph{Tactics} counts distinct
+coinduction-driving tactic names; \emph{lines} and \emph{chars} give the size of
+their definitions, every copy counted. Definition figures include tactic
+definitions, since \code{Ltac} is specification for the classifier. \emph{main}
+is the library proper; \emph{main+extra} adds the four downstream developments.}
+\label{tab:headline}
+\centering
+\small
+\pgfplotstabletypeset[
+  col sep=comma,
+  /pgf/number format/set thousands separator={\,},
+  every head row/.style={
+    before row={\toprule
+      & & \multicolumn{3}{c}{Coinduction tactics}
+      & \multicolumn{2}{c}{Definitions} & \multicolumn{2}{c}{Proofs} \\
+      \cmidrule(lr){3-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}},
+    after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+  columns={checkpoint,scope,tactics,tlines,tchars,
+           dlines,dchars,plines,pchars},
+  columns/checkpoint/.style={string type, column name=Checkpoint, column type=l},
+  columns/scope/.style={string type, column name=Scope, column type=l},
+  columns/tactics/.style={column name=names, column type=r, int detect},
+  columns/tlines/.style={column name=lines, column type=r, int detect},
+  columns/tchars/.style={column name=chars, column type=r, int detect},
+  columns/dlines/.style={column name=lines, column type=r, int detect},
+  columns/dchars/.style={column name=chars, column type=r, int detect},
+  columns/plines/.style={column name=lines, column type=r, int detect},
+  columns/pchars/.style={column name=chars, column type=r, int detect},
+]{data/headline.csv}
+\end{table*}

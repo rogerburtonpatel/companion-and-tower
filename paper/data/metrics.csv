@@ -1,0 +1,7 @@
+checkpoint,scope,library_tactics,tactic_lines,tactic_chars,def_lines,proof_lines,def_chars,proof_chars
+paco,main,16,118,4181,5870,6231,213716,176031
+paco,main+extra,20,127,4586,8853,12018,354025,399700
+old_port,main,21,240,8537,5820,6119,213284,160788
+old_port,main+extra,23,360,12754,8934,11521,355226,351873
+new_port,main,11,66,2283,5615,6133,206181,161372
+new_port,main+extra,12,71,2545,8627,11531,344951,352792

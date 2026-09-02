@@ -31,59 +31,6 @@ we provide three tactics:
 Require Export lattice tower rel.
 Set Implicit Arguments.
 
-(* the [mon] database TODO DOCUMENT. *)
-Create HintDb mon discriminated.
-#[global] Hint Resolve all_mono and_mono body_mono : mon.
-#[global] Hint Resolve mon_sup mon_inf mon_cup mon_cap : mon.
-
-#[global] Hint Extern 2 (Proper (leq ==> leq) _) =>
-  (solve [repeat intro; match goal with H: _ <= _ |- _ => apply H; assumption end]) : mon.
-
-(* todo make this bound less of a hack *)
-(* this catches a particular corner case which is relevant in the study of
-   active-only up-to techniques. 
-
-   the corner case is a hypothesis in which the candidate sits under a monotone
-   function it is not the chain of, as in [ba (elem c) u v] with [c : Chain b].
-   that predicate is indeed monotone in the candidate, but [auto] cannot see it
-   because using [body_mono] would mean reading [fun w => ba w u v] as [fun w =>
-   Q (ba w)], and there is no first-order way to guess [Q]. so we peel the
-   arguments off, then walk back out through each monotone function in turn
-   using its own [Hbody]. we use [match] rather than [lazymatch] so nesting like
-   [ba (b w)] can backtrack onto the inner function first. the bound stops the
-   wrapping from looping. *)
-Ltac mon_lift H n :=
-  first [ solve [assumption | apply H; assumption]
-        | lazymatch n with
-          | S ?m =>
-              match goal with
-              | |- context [@body _ _ ?b _] => mon_lift (Hbody b _ _ H) m
-              end
-          end ].
-
-#[global] Hint Extern 4 (Proper (leq ==> leq) _) =>
-  (solve [ repeat intro;
-           lazymatch goal with H : _ <= _ |- _ => mon_lift H 4 end ]) : mon.
-
-Ltac apply_leq :=
-  match goal with
-  | [H: _ <= _ |- _] => intros; apply H
-  | [H: leq _ _ |- _] => intros; apply H
-  end.
-
-Ltac induct_on_premise :=
-  once (match reverse goal with
-        | H: context [?rel _] |- context [?rel] => induction H
-        end).
-
-Ltac functor_mono :=
-  solve [ cbv; intros;
-          solve [ induct_on_premise; try econstructor; try apply_leq; eauto 5 ] ].
-
-Ltac monauto :=
-  solve [auto 20 with mon] ||
-  functor_mono ||
-   fail "`monauto` could not solve this goal.".
 
 
 (** ** the automatic procedure *)
@@ -95,11 +42,12 @@ Create HintDb ic discriminated.
                        inf_closed_leq
                        inf_closed_impl : ic.
 
-(** base cases: the candidate applied to arguments. *)
-#[global] Hint Extern 2 (inf_closed _) =>
-  (solve [intros ? ?; assumption]) : ic.
+(** base cases: the candidate applied to arguments. [P (inf T)] and [T <= P]
+    are convertible at a pointwise lattice, so [assumption] closes it. *)
+#[global] Hint Unfold inf_closed : ic.
 
-(** the relation classes, at any arity *)
+(** the relation classes, at any arity. this is a delta step inside the
+    predicate, which head-indexed [Hint Unfold] cannot reach. *)
 #[global] Hint Extern 1 (inf_closed _) =>
   (progress (unfold Reflexive, Symmetric, Transitive, Proper, respectful,
                     iff, Basics.flip, Basics.impl)) : ic.
@@ -230,22 +178,20 @@ Ltac check_one_candidate :=
   else idtac.
 
 (** [gfp_prop] must only abstract the occurrences of [gfp b] sitting in the
-    conclusion of the goal: those appearing in hypotheses are to be left alone,
-    so that [coinduction] on [gfp b 5 6 -> gfp b 7 8] keeps the premise as
-    [gfp b 5 6] rather than turning it into a statement about the candidate.
-    We thus strip the leading telescope into the context before applying
-    [gfp_prop], and revert it once [R] has been introduced.
-    [intro] (rather than [intro h] on a fresh [h]) preserves binder names.
-    The candidate is introduced under a private name and renamed to [R] only
-    once the telescope has been reverted, since the telescope may itself bind
-    [R]. *)
+        conclusion of the goal: those appearing in hypotheses are to be left
+        alone, so that [coinduction] on [gfp b 5 6 -> gfp b 7 8] keeps the
+        premise as [gfp b 5 6] rather than turning it into a statement about the
+        candidate. We thus strip the leading [forall] telescope into the context
+        before applying [gfp_prop], and revert it once [R] has been introduced.
+        [intro] (rather than [intro h] on a fresh [h]) preserves binder names.
+        The candidate is introduced under a private name and renamed to [R] only
+        once the telescope has been reverted, since the telescope may itself
+        bind [R].
+      *)
 
 (** the conclusion is often stated through a definition standing for the
     greatest fixpoint, as in [Definition eutt := gfp b]. [gfp] is opaque, so
-    [repeat red] stops exactly when the fixpoint is exposed. Without this,
-    [apply gfp_prop] unifies its [P gfp] against the folded conclusion by
-    taking [P] constant, and the failure only surfaces later, as [pattern]
-    finding no subterm. *)
+    [repeat red] stops exactly when the fixpoint is exposed. *)
 Ltac expose_gfp :=
   lazymatch goal with
   | |- context [@gfp _ _ _] => idtac
@@ -484,7 +430,7 @@ Ltac apply_by_symmetry R tac :=
   try once typeclasses eauto
   (* 2. [P] must be monotone. Here we use our user-facing
         solver that dispatches simple monotonicity proofs. *)
-  | try auto with mon
+  | try (auto 20 with mon)
   (* 3. [P] must be inf-closed. We do as in 2. *)
   | try icauto
   (* 4. [P] must have a symmetric shape. We do some tidying to first clean

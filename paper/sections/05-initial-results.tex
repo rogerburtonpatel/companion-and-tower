@@ -1,0 +1,81 @@
+\section{Initial Result}
+\label{sec:initial}
+
+At a first glance, felt positive: removing lots of compatibility code, fewer
+tactics, arities down.
+
+We expected great improvements to proofs, and indeed, many proofs are greatly
+simplified:
+
+\input{figures/fig-example}
+
+\gap{The outline leaves this example blank. \Cref{fig:example} is a candidate,
+picked because the lemma statement is character-for-character identical at the
+two checkpoints so only the proof differs. Swap it if a better one comes to mind;
+the largest proof-text reductions on identical statements are
+\code{proper_eqitree_throw_prefix} ($921 \to 87$ chars, but the statement changed
+so it is not like-for-like), \code{eqit_inv_Tau} ($604 \to 57$, used here), and
+\code{rutt_Proper_R2} ($659 \to 121$).}
+
+But this was offset by having to write lots of workarounds to missing or
+insufficient definitions of tactics in the enhanced coinduction library.
+
+Particularly \code{step} and a bug in coinduction led to these pain points:
+\gap{The pain points.}
+
+Disappointingly, we saw little reduction in overall number of lines of code. In
+fact, in spite of reducing 800 lines of proof, we observed a net gain in the
+total LOC (as calculated by \code{rocq wc}):
+
+\input{figures/fig-loc}
+
+\note{\textbf{The net-gain claim does not survive measurement, but something
+sharper does.} By \code{rocq wc}, paco $\to$ old port is proof $-754$ lines, spec
+$+333$, total $-421$, and $-18$ including comments. So the total did not rise; it
+was a wash. Two replacements that the data does support, either of which is a
+stronger sentence than the original: (1) tactic surface \emph{nearly tripled},
+$4\,586 \to 12\,754$ characters, $+178\%$; (2) tactic definitions in
+\code{theories/} went $77 \to 141$. Also note \code{rocq wc} is not sound on
+these files and its spec/proof split is wrong in both directions; see
+\code{paper-data/rocqwc-unsound.md}. The figures quoted throughout this paper
+come from the corrected classifier, not from \code{rocq wc}.}
+
+We can see in \Cref{fig:loc} that nearly all of this stems from definitions. Why?
+
+\note{\textbf{This part holds, and the mechanism is now precise.} Across
+\code{theories/}~+~\code{extra/} the definition column rose $8\,853 \to 8\,934$
+during the port, the only measure that rose at all. Separating tactic code out of
+that column: ordinary definitions \emph{fell} $8\,726 \to 8\,574$, and tactic
+lines rose $127 \to 360$. The $81$-line rise is $-152$ ordinary plus $+233$
+tactic. Every bit of the definitional growth is tactic workaround code, which is
+exactly the claim below.}
+
+We identified two main reasons:
+\begin{enumerate}
+  \item Some simple bugs in the coinduction library required large workarounds to
+        fix.
+  \item The \code{step} tactic for exposing the \bfun{} was not expressive enough,
+        requiring large redefinitions.
+\end{enumerate}
+
+Furthermore, the enhanced coinduction library contained a few technical warts
+that made development slow. In particular, some of the error messages were quite
+mysterious:
+
+\begin{lstlisting}
+Goal gfp b 5 6 -> gfp b 7 8.
+  coinduction R H.
+\end{lstlisting}
+
+This is odd, as \gap{\ldots}
+
+It turns out that \gap{\ldots}
+
+\note{For the two reasons above, the material that exists: \code{step} could not
+see through a definition standing for a fixed point, and failed at the arity
+up-to bind needs, so ITrees reimplemented stepping in two places. The plugin
+rejected any goal with the same \gfp{} in a hypothesis and the conclusion, which
+is routine in ITrees. Both are pinned as compiling Rocq goals in
+\code{paper-data/probes.v}, claims 1--2 and 5--7. A second mysterious-message
+example, if one is wanted: a candidate named after a binder already in the goal
+failed with a message about a missing chain.}

@@ -1,0 +1,49 @@
+%% A like-for-like comparison. The lemma statement is character-for-character
+%% identical at the two checkpoints, so only the proof differs.
+\begin{figure}[t]
+\small
+\textbf{Under \paco{}}
+\begin{lstlisting}
+Lemma eqit_inv_Tau b1 b2 t1 t2 :
+  eqit RR b1 b2 (Tau t1) (Tau t2) -> eqit RR b1 b2 t1 t2.
+Proof with eauto with itree.
+  intros. punfold H. red in H. simpl in *.
+  remember (TauF t1) as tt1. remember (TauF t2) as tt2.
+  hinduction H before b2; intros; try discriminate.
+  - inv Heqtt1. inv Heqtt2. pclearbot. eauto.
+  - inv Heqtt1. inv H.
+    + pclearbot. punfold REL. pstep. red. simpobs...
+    + pstep. red. simpobs. econstructor; eauto.
+      pstep_reverse. apply IHeqitF; eauto.
+    + eauto with itree.
+  - inv Heqtt2. inv H.
+    + pclearbot. punfold REL. pstep. red. simpobs...
+    + eauto with itree.
+    + pstep. red. simpobs. econstructor; auto.
+      pstep_reverse. apply IHeqitF; eauto.
+Qed.
+\end{lstlisting}
+
+\vspace{0.4em}
+\textbf{Under enhanced coinduction}
+\begin{lstlisting}
+Lemma eqit_inv_Tau t1 t2 :
+  eqit RR b1 b2 (Tau t1) (Tau t2) -> eqit RR b1 b2 t1 t2.
+Proof.
+  intros.
+  step in H; step.
+  now apply eqitF_inv_Tau.
+Qed.
+\end{lstlisting}
+\caption{The same lemma at the \cpaco{} and \cnew{} checkpoints. The statement is
+identical; only the proof differs. The \paco{} proof interleaves coinductive
+plumbing with an induction on the derivation, and six of its tactic calls
+(\code{punfold}, \code{pclearbot}, \code{pstep}, \code{pstep_reverse}) exist only
+to move between \paco{}'s guarded and unguarded forms. The port separates the
+two. Taking one step in the hypothesis and one in the goal is \code{step in H;
+step}, and the induction becomes \code{eqitF_inv_Tau}, an ordinary $19$-line
+lemma about the one-step functor that contains no coinduction at all and is
+reused elsewhere. The total is not much smaller. What changes is that the
+coinductive reasoning is three lines and is separable from everything else.}
+\label{fig:example}
+\end{figure}

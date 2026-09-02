@@ -360,18 +360,27 @@ this by hand at 86 sites. What is missing is that entering the functor and
 remembering the observations are separate steps, so `icbn` throws the way back
 away and `to_mon` has to guess it.
 
-Proposal, one tactic that does both:
+This was prototyped and it works. `iview` entered functor form leaving both
+arguments as variables, so `induction` could substitute; `unview` returned to
+b-form with the tree names intact, no `go (observe t)`; and setoid rewriting and
+stepping both worked there. Naming the remembered variable with `fresh "o" t`
+reproduced the existing `ot`, `ou`, `Heqot`, `Heqou` convention exactly, so the
+converted proof body was unchanged.
 
-```coq
-Ltac iview := cbn [body eqit_mon eqit_];
-              repeat match goal with |- context [observe ?t] => genobs t ? end.
-```
+Two things the prototype taught. `unview` has to unfold the gfp aliases before
+folding, because `to_mon` matches `sim` in the shape `f R1 R2 RR` and the folded
+alias `eqit RR b1 b2` does not match it. And rewriting in b-form works only
+where a `Proper` instance exists: it works for `eqit_mon b1 b2 (elem c)`,
+because that term is `elem (chain_b c)` and the chain instances apply, and not
+for `eqit_mon b1 b2 (gfp ...)` at general flags, which nobody has stated.
 
-with `simpobs` as the return trip. If it works, `to_mon`, `to_mon_core`,
-`to_mon_in`, `to_mon in`, `to_rmon`, `to_rmon_core` and `bcbn` all go, taking
-the plumbing families from seven to about three. The risks are that 32 `to_mon`
-call sites move, and that proofs already calling `genobs` by hand would remember
-twice unless the tactic is idempotent.
+**Decision: not adopted. `to_mon` and `bcbn` stay.** The migration is not a
+substitution. At the 32 `to_mon` call sites the entry into functor form is
+`step in H; induction H` with no `genobs`, so there are no equations for
+`unview` to rewrite back with, and every entry would have to change too. The
+payoff is goal readability rather than tactic count, and it is not worth 32
+touched proofs. The analysis above stands as the explanation of why the b-form
+and F-form split exists, and the eta result is the durable part.
 
 Two smaller items in the same direction. `icbn` is `repeat red`, which unfolds
 whatever head it meets; `rcbn` is `cbn [rutt_mon body]; try unfold rutt_`, which
