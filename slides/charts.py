@@ -118,23 +118,27 @@ def table_png(m, keys, name, title):
                          [f"{x:,}" for x in v],
                          pct(v[0], v[1]), pct(v[0], v[2])))
 
-    ncol = 7
-    w = [0.0, 0.175, 0.45, 0.59, 0.735, 0.875, 1.0]
-    fh = 0.42 + 0.34 * len(rows) + (0.16 * (len(keys) - 1))
-    fig, ax = plt.subplots(figsize=(9.6, fh), dpi=200)
+    # With one measure the title already names it, so the measure column goes.
+    single = len(keys) == 1
+    w = ([-1, 0.0, 0.42, 0.565, 0.71, 0.86, 1.0] if single
+         else [0.0, 0.175, 0.45, 0.59, 0.735, 0.875, 1.0])
+    fh = 0.8 + 0.36 * len(rows) + 0.16 * (len(keys) - 1)
+    fig, ax = plt.subplots(figsize=(8.4 if single else 9.6, fh), dpi=200)
     fig.patch.set_facecolor("white")
     ax.set_xlim(0, 1); ax.set_ylim(0, len(rows) + 1.6); ax.axis("off")
 
     head = ["", "", "paco", "old port", "new port", "old vs paco", "new vs paco"]
     y = len(rows) + 0.85
-    for i in range(ncol):
+    for i in range(7):
+        if single and i == 0:
+            continue
         ax.text(w[i], y, head[i], fontsize=10.5, color=MUTED,
                 ha="left" if i < 2 else "right", va="center")
     ax.plot([0, 1], [y - 0.42] * 2, color=INK, lw=1.1)
 
     for r, (mt, label, vals, d1, d2) in enumerate(rows):
         y = len(rows) - r - 0.1
-        if mt:
+        if mt and not single:
             ax.text(w[0], y, mt, fontsize=10.5, color=INK,
                     fontweight="bold", va="center")
         ax.text(w[1], y, label, fontsize=10, color=MUTED, va="center")
@@ -174,11 +178,11 @@ def main():
     if "--no-chart" not in sys.argv:
         for k in keys:
             table_png(m, [k], f"table-{k}",
-                      f"{MEASURES[k][1]}   \u2014   {MEASURES[k][2]}")
+                      f"{MEASURES[k][1]} ({MEASURES[k][2]})")
         if len(keys) > 1:
             table_png(m, keys, "table-all",
-                      "InteractionTrees across the three checkpoints"
-                      "   \u2014   sizes in characters, total size in lines")
+                      "ITrees metrics across the three checkpoints"
+                      " (sizes in characters, total size in lines)")
 
 
 if __name__ == "__main__":

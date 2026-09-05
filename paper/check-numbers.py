@@ -2,6 +2,9 @@
 """Re-derive every number the paper states in prose and compare it against the
 data. Exits non-zero if any claim has drifted.
 
+    NOTE: most prose numbers are currently hand-typed rather than using the
+    preamble macros, so this checks the macros, not what the prose says.
+
 The tables and the chart read the CSVs at compile time and cannot drift. This
 script covers the figures that appear inside sentences, which are macros in
 preamble.tex, plus the hand-written library table."""
@@ -27,7 +30,7 @@ chk("proofCharsDropBoth", -pct(g("paco","main+extra","proof_chars"), g("new_port
 chk("proofLinesDropBoth", -pct(g("paco","main+extra","proof_lines"), g("new_port","main+extra","proof_lines")), 4.1)
 chk("tacCharsRiseMain", pct(g("paco","main","tactic_chars"), g("old_port","main","tactic_chars")), 104, 0.3)
 
-# section 5
+# section 6, the first port
 chk("s5 proof chars main", -pct(g("paco","main","proof_chars"), g("old_port","main","proof_chars")), 8.7)
 chk("s5 proof chars both", -pct(g("paco","main+extra","proof_chars"), g("old_port","main+extra","proof_chars")), 12.0)
 chk("s5 proof lines main", -pct(g("paco","main","proof_lines"), g("old_port","main","proof_lines")), 1.8)
@@ -37,7 +40,7 @@ chk("s5 def-line rise", g("old_port","main+extra","def_lines") - g("paco","main+
 chk("s5 nontactic fall", nd("paco") - nd("old_port"), 152, 0)
 chk("s5 tactic-line rise", g("old_port","main+extra","tactic_lines") - g("paco","main+extra","tactic_lines"), 233, 0)
 
-# section 7
+# section 9, results
 chk("s7 drop both", -pct(g("paco","main+extra","tactic_chars"), g("new_port","main+extra","tactic_chars")), 44.5)
 chk("s7 def lines main", -pct(g("paco","main","def_lines"), g("new_port","main","def_lines")), 4.4)
 chk("s7 def chars main", -pct(g("paco","main","def_chars"), g("new_port","main","def_chars")), 3.5)
@@ -52,7 +55,7 @@ chk("total lines both", -pct(g("paco","main+extra","code_lines"), g("new_port","
 chk("total lines both, first port",
     -pct(g("paco","main+extra","code_lines"), g("old_port","main+extra","code_lines")), 2.0)
 
-# the library table, section 6
+# the library table, section 8
 lib = {r["component"]: r for r in csv.DictReader(open("data/library.csv"))}
 for comp, want in [("tactics",-18), ("lattice",30), ("tower",12), ("companion",-5), ("rel",19), ("core",6)]:
     r = lib[comp]

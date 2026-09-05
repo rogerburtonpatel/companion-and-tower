@@ -1,0 +1,75 @@
+\section{Results}
+\label{sec:results}
+
+\input{figures/tbl-headline}
+
+\subsection{Tactics}
+
+\textbf{Tactic surface in ITrees down 45.4\%}
+
+\input{figures/fig-loc}
+
+\subsection{Proofs}
+
+\textbf{Proof reduction largely maintained}
+
+\subsection{Definitions}
+
+\textbf{Definitions reduced slightly}
+
+\subsection{Total}
+
+\textbf{Gains across the board, with tactic \& proof gains significant}
+
+\note{\textbf{Every number on talk slides 84--87 reproduces exactly against the
+current data}, because those slides use the released tables. \Cref{tab:headline}
+is the same table with total size added. The four figures are in
+\code{slides/out/} as \code{tactic}, \code{proof}, \code{def} and \code{total}.}
+
+\note{\textbf{One number the talk does not have, and should.} Total size, every
+non-blank comment-free line counted once, goes $20\,871 \to 20\,455 \to 20\,156$
+across the whole development, which is $-2.0\%$ at the first port and $-3.4\%$
+after the rewrite. It never rose. That is worth stating because ``the tactic
+surface tripled'' invites the reader to assume the development grew, and it did
+not.}
+
+\subsection{Other perks}
+
+\code{icauto} is user-facing, previously internal only.
+
+\code{monauto} is user facing, previously nonexistent (but was in paco).
+
+\gap{The two before/after pairs from slide 88. The first collapses six lines of
+\code{apply inf_closed_*} plumbing into \code{tower induction.}; the second
+collapses a five-line monotonicity proof into \code{Proof. monauto. Qed.}
+Supporting figure: \code{monauto} discharges $17$ of the $18$ monotonicity
+statements in ITrees, and \code{tower induction} is used at $22$ sites while
+ITrees contains \emph{zero} calls to \code{icauto}, because the obligation never
+reaches the user.}
+
+\subsection{Rundown}
+
+Old $\rightarrow$ new port:
+\begin{enumerate}\setcounter{enumi}{5}
+  \item No bugs \quad $\times \rightarrow$ \checkmark
+  \item Informative error messages \quad $\times \rightarrow$ \checkmark
+  \item Rich tactic support \quad $\times \rightarrow$ \checkmark
+  \item Good performance (strange but important in some cases)
+        \quad $\times \rightarrow$ \checkmark
+  \item Documentation of all points thus far \quad (Some) $\rightarrow$ (More) now
+\end{enumerate}
+
+\input{figures/tbl-timing}
+
+\note{\textbf{Item 9 now has a number behind it.} The first port cost $+25.6\%$
+on a full serial build against the paco baseline; the rewrite recovers it to
+$+4.1\%$. Four interleaved rounds, protocol in \code{slides/README.md}. Diagnosed
+causes, none inherent to enhanced coinduction: the port dropped paco's explicit
+\code{eauto} depth annotations; \code{inv} gained a \code{try easy} and is called
+at $1118$ sites; and $33$ sites reverted the whole context instead of the tail.
+
+Those fixes are also why proof text is $0.3\%$ \emph{longer} at the new port than
+at the old one: \code{eauto 4 with itree}, \code{inv_e} and
+\code{try discriminate} are each a few characters longer than what they replaced,
+across several hundred sites. Worth one sentence, since \Cref{tab:headline}
+shows the proof column ticking up and a reviewer will ask.}

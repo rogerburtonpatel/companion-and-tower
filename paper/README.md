@@ -11,12 +11,26 @@ set in `preamble.tex`:
   worth adding, a claim the measurements contradict, or a placement decision.
   None of it is paper prose. Delete each as it is resolved.
 
-Section order is derived rather than as-given. Three things in the outline were
-out of place: the measurement paragraph above the abstract is methodology and
-became Section 3; "Initial Result" stands on its own rather than under the
-experiment; and the trailing `monauto` paragraph moved into the rewrite section.
-Sections 7 and the data-availability statement are containers that did not exist
-in the outline, and their notes say so.
+**Section order follows the talk** (`coinduction-cornell-new.pdf`), which has two
+major parts: *Context*, the theoretical foundations of coinduction and the
+evolution of those techniques in Rocq, and *Experiment Report*.
+
+| section | talk slides |
+|---|---|
+| 1 Introduction | 2--4, 50 |
+| 2 Context: Coinduction as a Greatest Fix Point | 6--28 |
+| 3 Context: Mechanized Coinduction | 29--37 |
+| 4 Context: paco, gpaco, and Interaction Trees | 38--49 |
+| 5 Attempt 1: Tower Induction | 51--64 |
+| 6 Theory meets Practice | 65--69 |
+| 7 First-pass problems | 70--79 |
+| 8 Solution: bypass reification | 80--83 |
+| 9 Results | 84--89 |
+| 10 Ideas and Future Work | 90--92 |
+
+The one structural departure: the talk's 44 context slides are compressed into
+Sections 2--4, because at 12 pages they would otherwise consume half the paper.
+A note at the head of Section 2 says so.
 
 Format is the CPP call for papers requirement: ACM SIGPLAN proceedings format,
 `acmart` with the `sigplan` option, 10pt, lightweight double-blind review. The
@@ -59,8 +73,8 @@ its own any time.
 ## The build-time measurement
 
 `data/timings.csv` is four interleaved rounds of a full serial build at each of
-the three checkpoints, measured on 2026-08-31. The protocol matters and is
-described in Section 3 of the paper. Three confounds each produced a wrong answer
+the three checkpoints, measured on 2026-08-31. The protocol matters and the paper has
+no section for it yet; see the editor's finding on a measurement section. Three confounds each produced a wrong answer
 during this work: `make TIMED=1` leaves timing artifacts in one tree and not
 another, blocked ordering plus machine warm-up manufactures a difference that is
 not there, and a single run cannot resolve a two-second effect on a ninety-second

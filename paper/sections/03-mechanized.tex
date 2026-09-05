@@ -1,0 +1,60 @@
+\section{Context: Mechanized Coinduction}
+\label{sec:mechanized}
+
+But\ldots why care about this when we have \code{cofix} in Rocq?
+
+\subsection{Problems with Rocq's Native Coinduction}
+
+\begin{enumerate}
+  \item Non-compositional
+  \item Easy to make mistakes with \code{cofix}
+  \item Guess the bisimulation candidate \emph{up front}
+  \item Not amenable to automation
+\end{enumerate}
+
+Another (big) problem:
+\begin{enumerate}\setcounter{enumi}{4}
+  \item No support for \textbf{up-to} techniques
+\end{enumerate}
+
+\subsection{Coinduction Up-to}
+
+Motivation: easier proof by coinduction.
+
+\code{R <= b R} $\longrightarrow$ \code{R <= b (f R)} for some \code{f}
+
+Example: \code{f x := x \/ id}. This is \textbf{``up to reflexivity''}. Could
+prove manually, but\ldots would rather show \code{~} is reflexive!
+
+Other common up-to functions are symmetry, transitivity, and up-to context.
+Some up-to techniques, like up-to context, are \underline{essential} for proofs
+in sophisticated developments.
+
+\subsection{(Mechanized) Coinduction Wishlist}
+\label{sec:wishlist}
+
+\begin{enumerate}
+  \item Compositional (Non-syntactic guardedness)
+  \item Smooth way to prove soundness of \textbf{up-to techniques}
+  \item Straightforward to use
+  \item Amenable to automation
+  \item Nice-to-have: incremental bisimulation
+\end{enumerate}
+
+How about just formalizing Knaster-Tarski? \gap{The scorecard from talk slide 35:
+1~\checkmark, 2~$\times$, 3~\checkmark, 4~\checkmark, 5~$\times$.}
+
+\note{\textbf{This wishlist is the paper's spine and should be presented as
+such.} The talk scores it four times, at slides 35 (Knaster-Tarski), 41 (paco),
+64 (tower) and 89 (the rewrite, items 6--10). That repetition is what makes the
+talk's argument land, and it is a structure a paper can keep cheaply as one
+table with four columns rather than four separate scorecards. Worth deciding
+early, because it also fixes how \Cref{sec:results} ends.}
+
+\subsection{The Pursuit of Happiness in Coinduction}
+
+\gap{The timeline from talk slide 37: \code{cofix} $\to$ \code{paco} $\to$ the
+companion (Pous~\cite{pous-companion}; Parrow \& Weber; Schäfer \&
+Smolka~\cite{schafer-smolka}) $\to$ ITrees and
+\code{gpaco} $\to$ New ITrees. This is the one context figure that earns a full
+column in the paper, because it places the two libraries the paper compares.}

@@ -1,0 +1,72 @@
+\section{Solution: bypass reification}
+\label{sec:rewrite}
+
+\textbf{Rewrite the \code{rocq-coinduction} library tactic interface}
+
+Lightning Overview:
+\begin{itemize}
+  \item[$\rightarrow$] Removed OCaml to use \code{pattern}
+  \item[$\rightarrow$] Prove inf-closedness using \code{icauto}
+  \item[$\rightarrow$] Proved monotonicity using \code{monauto}
+\end{itemize}
+
+\subsection{Improvement}
+
+Old:
+\begin{lstlisting}
+Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
+  apply gfp_prop; intro R; apply_ptower R O; intros H.
+\end{lstlisting}
+
+\code{apply_ptower R O}: \textasciitilde200 Lines of OCaml + \textasciitilde200
+Lines of Rocq.
+
+New:
+\begin{lstlisting}
+Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
+  gfp_intro' R; pattern (elem R); revert R;
+  apply tower; [ icauto | intro R; cbn beta; intros H ].
+\end{lstlisting}
+
+Total: \textasciitilde25 lines of Rocq.
+
+\subsection{Tradeoff}
+
+\begin{itemize}
+  \item[$\rightarrow$] Removed OCaml to use \code{pattern}
+  \item[$\rightarrow$] \textbf{Tradeoff: Prove inf-closedness using \code{icauto}}
+\end{itemize}
+
+\begin{lstlisting}
+Ltac icauto :=
+  tryif solve [auto 20 with ic mon nocore] then idtac
+  else match goal with
+     | |- inf_closed ?P =>
+       fail 1 "[coinduction] cannot show that this predicate is inf-closed:" P
+     | _ => fail 1 "bug in icauto, please report"
+     end.
+\end{lstlisting}
+
+Nondeterministic, but adjustable by users with \code{auto} depth.
+
+\subsection{Attempt 2: With fixed library}
+
+\textbf{Rewrite the \code{rocq-coinduction} library tactic interface}
+
+Removed ocaml plugin entirely, which simplified the tactic codebase and reduced
+it by \igap{\tacImplClaim{}}. In particular: $-300$ LOC of ocaml, $-200$ LOC of
+Rocq. Added support for more expressive tactics that didn't require so much
+wrapping. Fixed the bugs.
+
+\input{figures/tbl-library}
+
+\note{\textbf{The $-300$/$-200$ split holds up; the headline percentage depends
+on convention.} \Cref{tab:library} measures every line that exists to implement
+tactics, comments and blanks removed on both sides. The OCaml plugin is $174$
+lines ($307$ by raw \code{wc -l}, which is where $-300$ comes from) and it needed
+a further $139$ lines of Rocq glue --- the \code{Module reification} block, $17$
+\code{Register} declarations and the \code{Declare ML Module} --- plus $7$ lines
+of build config, which is the $-200$. Against that, Ltac \emph{grew} $43 \to 192$
+lines, because the logic moved out of OCaml and into Ltac. Totals: $363 \to 192$
+lines, $-47\%$; $12\,233 \to 6\,164$ characters, $-50\%$. See the abstract note
+for the four conventions and pick one.}

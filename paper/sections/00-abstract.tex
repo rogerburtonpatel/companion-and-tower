@@ -1,35 +1,50 @@
-Coinductive reasoning is central to mechanized semantics, and the Rocq Proof
-Assistant offers several abstractions to support it. Parameterized coinduction
-(paco) underlies the Interaction Trees (ITrees) library, while enhanced
-coinduction, most recently formulated through the tower induction principle over
-the companion, promises greater simplicity and better compositionality of up-to
-techniques. We evaluate enhanced coinduction at scale by refactoring the ITrees
-library from paco to a tower-based enhanced coinduction library. The exercise
-revealed weaknesses in the existing enhanced coinduction implementation and
-prompted fully rewriting it. The new library eliminates the OCaml plugin in
-favor of a pure Gallina and Ltac formulation, reduces the codebase by 62\%,
-extends documentation and test coverage, and fixes several latent bugs along the
-way. Re-integrating the rewritten library into ITrees validates the approach.
-\gap{``Coinductive proofs shrink by N\% in lines of code, and individual lemmas
-that previously required multi-step paco incantations now follow from a single
-application of tower induction.'' Data now exists for this sentence. Measured:
-proof text falls $8.3\%$ in \code{theories/} and $11.7\%$ across the whole
-development; proof \emph{lines} fall only $1.6\%$ and $4.1\%$, so the
-lines-of-code framing understates it by about $3\times$ and characters is the
-stronger number. Coinduction-specific tactic names go $16 \to 11$ in
-\code{theories/}, and the Ltac implementing them falls $45.4\%$. \Cref{fig:example} is a candidate for the ``single application
-of tower induction'' half.}
-These results suggest that tower-based enhanced coinduction is not only a
-theoretical simplification but a practical improvement for large coinductive
-developments. We describe the design decisions behind the rewrite and draw
-lessons for coinduction library design in Rocq.
+Parameterized coinduction, or \code{paco} (Hur et al.), is a library for
+low-level coinductive reasoning in the Rocq Proof Assistant which greatly
+improves on Rocq's awkward \code{cofix} tactic. But proofs using \code{paco}
+still involve intricate definitions and a wide array of library tactics that can
+make them long and complex. An alternative to \code{paco} is offered by Pous's
+\code{rocq-coinduction} library, which mechanizes the chain construction and
+tower induction principle of Schäfer and Smolka. Tower induction promises
+coinductive proofs that rely on fewer tactics than \code{paco}, and unlike
+\code{paco} provides a uniform mechanism for proofs by coinduction and proofs of
+soundness of up-to techniques (Pous \& Sangiorgi 2011, Schäfer \& Smolka 2017).
 
-\note{\textbf{``reduces the codebase by 62\%'' needs a referent, and the closest
-measure now reads 65\%.} The tactic implementation, meaning \code{tactics.v} plus
-the OCaml plugin it called, goes $229 + 307 = 536$ lines to $188$, which is
-$-65\%$. The library as a whole goes the other way, $1\,395 \to 1\,485$ core
-lines ($+6\%$), because tests grew $84 \to 328$ and comments $370 \to 455$.
-Counting the deleted plugin against the old total, $1\,702 \to 1\,485$ is
-$-13\%$. So 62\% is defensible for the tactic implementation and is now
-conservative; it is not defensible for ``the codebase''. \Cref{tab:library} has
-all three framings.}
+We assessed that promise at scale by porting the coinductive-proof
+infrastructure of the Interaction Trees (ITrees) library, a large library that
+relies extensively on coinductive reasoning, from \code{paco} to
+\code{rocq-coinduction}. This first port was disappointing. Proof size went
+down, but tactic surface went up far more. Proof text fell $12\%$, from $400$k to
+$352$k characters, while the custom tactic code ITrees had to write in order to
+drive the library nearly tripled, a rise of $178\%$. In particular,
+\code{rocq-coinduction} required much client-side plumbing around its exposed
+tactics in order for them to function, and also contained several usability bugs
+that required client-side workarounds in multiple locations. Furthermore,
+development occasionally stalled because the underlying tactics in the
+tower-based library were written in OCaml and relied on complex under-the-hood
+invariants, which made them difficult to debug in practice.
+
+We therefore rewrote the tactic layer of \code{rocq-coinduction} itself from
+scratch. The new implementation is Rocq-native, replacing the OCaml plugin with
+Gallina and Ltac, and \igap{\tacImplClaim{}} while providing more expressive
+tactics and removing the limitations above. Rerunning the ITrees port against it
+keeps that proof reduction and removes what it cost. Library tactic invocations
+fell $52\%$ ($2705$ to $1307$), the library defines $8$ fewer wrapper tactics on
+top of enhanced coinduction compared to \code{paco} ($20$ to $12$), and the
+build-time regression the first port introduced fell from $26\%$ to $4\%$. These
+results suggest that tower-based coinduction is not only a theoretical
+simplification but a practical improvement over \code{paco} for large
+coinductive developments.
+
+\note{\textbf{Two numbers changed since the talk, both in your favour, and one
+needs a decision.}
+\emph{(a)} ``$20$ to $14$'' is now \textbf{$20$ to $12$}, eight fewer rather than
+six, because the shared \code{to_mon} driver collapsed two more families. Fixed
+above.
+\emph{(b)} the \texttt{tacImplClaim} placeholder is a placeholder for the
+$65\%$ claim, which depends on a counting convention you have not picked. Slide
+83 says ``reduced it by $65\%$'', from ``$-300$ LOC of ocaml, $-200$ LOC of
+Rocq''. Counting like for like, comments and blanks removed on both sides, the
+tactic implementation goes $363 \to 192$ lines ($-47\%$) or $12\,233 \to 6\,164$
+characters ($-50\%$); counting the whole of \code{tactics.v} against the plugin
+by raw \code{wc -l} gives $-62\%$. \Cref{tab:library} has the full breakdown.
+Pick one and I will wire it through the abstract, the macros and the checker.}

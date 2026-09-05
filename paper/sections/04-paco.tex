@@ -1,0 +1,72 @@
+\section{Context: paco, gpaco, and Interaction Trees}
+\label{sec:paco}
+
+\subsection{Improvement 1: paco/gpaco}
+
+\code{paco}~\cite{paco} (\textbf{pa}rametrized \textbf{co}induction) formalizes
+Knaster-Tarski\ldots allowing us to find the \code{gfp} in a more permissive
+way\ldots by giving us rules for accumulation and composition.
+
+\gap{$\mathrm{G}_f(x) \stackrel{\mathrm{def}}{=} \nu y.\, f(x \sqcup y)$, with
+$G$ the ``parameterized'' \code{gfp}, and $\nu f \equiv \mathrm{G}_f(\bot)$.
+Then the three rules from slide 39: COMPOSE, for combining theorems;
+ACCUMULATE, for adding knowledge during a proof; UNFOLD, for exposing the
+monotone function \code{f}.}
+
+\code{gpaco}~\cite{gpaco} (\textbf{g}eneralized \textbf{paco}) exploits \emph{compatible
+enhancements} to the \code{gfp} for \textbf{up-to} reasoning.
+
+\textbf{Paco stats:} \gap{The scorecard from slide 41: 1~\checkmark,
+2~(partial), 3~\checkmark, 4~\checkmark, 5~\checkmark. \ldots but \underline{much}
+better than \code{cofix}!}
+
+\subsection{From paco, Interaction Trees (ITrees)~\cite{itrees}}
+
+Idea: Abstract away \underline{all} coinductive proof, and do reasoning modulo an
+equational theory.
+
+ITree: A data structure for:
+\begin{enumerate}
+  \item Modeling \underline{infinite} and \underline{impure computation}
+  \item \underline{Hiding the low-level coinductive reasoning} one would do with
+        \code{paco}.
+  \item \underline{Extractable} execution for verified software
+\end{enumerate}
+
+\code{itree} is the \code{CoInductive itreeF}.
+
+Paco is pervasive in ITrees, and is used to define bisimilarity.
+\gap{The search hit from slide 44, ``667 results in 54 files'', beside
+\code{eqitF} as the \code{b} and \code{eqit} as the \code{gfp b}. This is the
+slide that justifies calling the port large.}
+
+\subsection{\ldots but paco has some weaknesses}
+
+\begin{itemize}
+  \item Long compatibility proofs
+  \item Lemmas reasoning about compatibility are hard to read and maintain
+  \item Lots of individual tactics make it a bit tricky to use and automate
+        (6 paco-specific tactics in this proof)
+\end{itemize}
+
+\gap{The three code figures from slides 46, 47 and 48. At least one has to
+survive into the paper; the 6-tactics-in-one-proof example on slide 48 is the
+one that carries a number.}
+
+\subsection{Can we do better?}
+
+Paco is a complete theory of up-to coinduction: Problem is only in usability.
+
+\textbf{Main problems:}
+\begin{enumerate}
+  \item Compatibility proofs can get long,
+  \item Proofs with \code{gpaco} closures can get confusing and use different
+        techniques,
+  \item Lots of tactics to remember (4-8+ unique paco tactics per proof)
+  \item Minor wart: ``arity hell:'' each paco operator is re-defined for
+        different arities, e.g., \code{paco1}, \code{paco2}, up to
+        \code{paco16}\ldots (also makes portable automation harder to write)
+\end{enumerate}
+
+So, our goal is to find a theory that gives ``nicer'' proofs, is easier to
+maintain and teach, etc.
