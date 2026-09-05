@@ -1,7 +1,0 @@
-checkpoint,scope,tactics,tlines,tchars,dlines,dchars,plines,pchars
-paco,main,16,118,4181,5870,213716,6231,176031
-paco,main+extra,20,127,4586,8853,354025,12018,399700
-old port,main,21,240,8537,5820,213284,6119,160788
-old port,main+extra,23,360,12754,8934,355226,11521,351873
-new port,main,11,66,2283,5613,206132,6133,161374
-new port,main+extra,12,71,2545,8625,344902,11531,352794

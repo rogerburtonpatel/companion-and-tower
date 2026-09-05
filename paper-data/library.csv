@@ -1,3 +1,0 @@
-library,revision,tactic_defs,ltac_lines,ltac_chars,ocaml_files,ocaml_lines,ocaml_chars,glue_lines,glue_chars,build_lines,build_chars,total_lines,total_chars
-released,ac51c83,15,43,1554,5,174,6018,139,4515,7,146,363,12233
-rewritten,089a877,44,192,6164,0,0,0,0,0,0,0,192,6164
