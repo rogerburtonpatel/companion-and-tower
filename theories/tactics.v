@@ -164,16 +164,14 @@ Ltac icauto :=
     otherwise the abstraction silently keeps the other [gfp] and the failure
     surfaces much later, as an inf-closedness goal that mentions it.
     [match] rather than [lazymatch] so that both occurrences are enumerated. *)
-Ltac two_candidates :=
-  match goal with
-  | |- context [@gfp ?X ?L ?b1] =>
-      match goal with
-      | |- context [@gfp X L ?b2] => tryif unify b1 b2 then fail else idtac
-      end
-  end.
-
 Ltac check_one_candidate :=
-  tryif two_candidates then
+  tryif match goal with
+        | |- context [@gfp ?X ?L ?b1] =>
+            match goal with
+            | |- context [@gfp X L ?b2] => tryif unify b1 b2 then fail else idtac
+            end
+        end
+  then
     fail "[coinduction] only one coinductive candidate is allowed: this conclusion mentions the gfps of two different functions"
   else idtac.
 
@@ -210,11 +208,6 @@ Ltac gfp_intro_ c :=
   | |- _ => expose_gfp; check_one_candidate; apply gfp_prop; intro c
   end.
 
-Ltac gfp_intro' R :=
-  let c := fresh "coind_candidate" in
-  gfp_intro_ c;
-  rename c into R.
-
 (** ** starting a proof by (enhanced) coinduction *)
 (** when the goal is of the shape
 
@@ -238,7 +231,9 @@ Ltac gfp_intro' R :=
  *)
 
 Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
-  gfp_intro' R; pattern (elem R); revert R;
+  let c := fresh "coind_candidate" in
+  gfp_intro_ c; rename c into R;
+  pattern (elem R); revert R;
   apply tower; [ icauto | intro R; cbn beta; intros H ].
 
 (* Tower induction *)
