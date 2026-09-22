@@ -669,10 +669,30 @@ Ltac functor_mono :=
   solve [ cbv; intros;
           solve [ induct_on_premise; try econstructor; eauto 5 ] ].
 
+(** [auto]'s depth bound is global, while the goals [monauto] gets from
+    [ptower] grow without bound: every pair accumulated in a proof by enhanced
+    coinduction adds one hypothesis about the candidate, hence one more level to
+    the conjunction whose monotonicity has to be established.  A proof
+    accumulating twenty pairs already exhausts [auto 20], and no fixed bound
+    would be enough.
+
+    So we peel the logical structure ourselves, with no bound, and call [auto]
+    only on the leaves -- where the depth needed is that of a single hypothesis,
+    and small. *)
+Ltac mon_peel :=
+  lazymatch goal with
+  | |- Proper (leq ==> leq) (fun _ => _ /\ _) =>
+      apply and_mono; mon_peel
+  | |- Proper (leq ==> leq) (fun _ => forall _, _) =>
+      apply all_mono; intro; mon_peel
+  | |- _ => solve [auto 20 with mon]
+  end.
+
 Ltac monauto :=
+  solve [mon_peel] ||
   solve [auto 20 with mon] ||
   functor_mono ||
-   fail "`monauto` could not solve this goal.".
+   fail "`monauto` could not solve this goal".
 
 (* TODO REMOVE *)
 (* Section homework. 

@@ -1,2 +1,9 @@
 # companion-and-tower
-Combining the tower representation (Shäfer &amp; Smolka, Pous) with the diacritical companion (Biernacki et al.)
+
+new-rocq-coinduction. The new lib, getting geared up for deployment. 
+
+TODO write this readme. 
+
+
+
+

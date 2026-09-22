@@ -184,22 +184,19 @@ Definition Symmetrical' {A} `(P : (A -> A -> Prop) -> Prop) := forall x, P x -> 
 
 Lemma by_symmetry' {b : mon_Xrel} (s: mon_Xrel) (S: Symmetrical converse b s) {R: Chain b}
 (P : (X -> X -> Prop) -> Prop)
-(Hmon : Proper (leq ==> leq) P)
+(Hw : forall x y, x == y -> P x -> P y)
 (Hic : inf_closed P)
 (Hsymm : Symmetrical' P)
 : P (s (elem R)) <= P (b (elem R)).
 Proof.
-  transitivity (P (cap (s (elem R)) (converse (s (elem R))))).
-  - intros HP.
-  apply inf_closed_cap_elem.
-  + apply Hmon.
-  + apply Hic.
-  + apply HP.
-  + now apply Hsymm.
-  - apply Hmon.
-    intros x y Hcap.
-    eapply (@symmetrical_chain _ _ _ _ _ _ S R).
-  apply Hcap.
+  intro HP.
+  apply (Hw (cap (s (elem R)) (converse (s (elem R))))).
+  { symmetry. exact (@symmetrical_chain _ _ _ _ _ _ S R). }
+  apply (Hw (inf (fun z => z = s (elem R) \/ z = converse (s (elem R))))).
+  { intros a c. cbn. split.
+    - intros H. split; apply H; auto.
+    - intros [H1 H2] z [-> | ->]; assumption. }
+  apply Hic. intros z [-> | ->]. exact HP. apply Hsymm, HP.
 Qed.
 
 End by_symmetry.

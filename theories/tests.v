@@ -402,7 +402,7 @@ bnat' (elem R) (x+y) y /\ bnat' (elem R) x y.
   intros R Hsymmetric_holds.
   begin_symmetry R.
   typeclasses eauto.
-  monauto.
+  sym_weq_tac.
   icauto.
   intro P; revert_last;
   cbn [body converse]; clear; firstorder.

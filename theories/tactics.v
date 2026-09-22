@@ -64,6 +64,38 @@ Ltac icauto :=
        | _ => fail 1 "bug in icauto, please report"
        end.
 
+(** * Normalising the occurrences of the candidate
+
+    [pattern] abstracts subterms syntactically, so every occurrence of
+    [elem c] in the goal must have the very same shape for the abstraction to
+    catch them all.  This is not guaranteed: the carrier [X] and its lattice
+    structure are implicit arguments of [elem], so any reduction performed on
+    part of the goal may reduce them there and nowhere else.  A user tactic
+    playing one step of the coinductive game with a [cbn] is enough, as in
+
+    [Ltac next := split; [reflexivity | cbn; intro]].
+
+    which turns a conclusion [@elem (states A -> states A -> Prop) _ b c u v]
+    into [@elem (four -> four -> Prop) _ b c u v] while the hypotheses keep the
+    unreduced form.  [pattern (elem c)] then abstracts only some of the
+    occurrences, and the resulting predicate is constant in the others; the
+    failure surfaces much later as an unprovable [inf_closed] goal.
+
+    [normalize_elem c] repairs this beforehand: it rewrites every occurrence of
+    [elem c] to the shape [elem c] elaborates to on its own, which is also the
+    shape [pattern] will look for.  The left-hand side of [change] is a
+    pattern, so the holes cover every shape the implicit arguments may have
+    been reduced to, in one step; and [change] is a conversion, so the
+    rewriting is always legitimate -- the differing arguments are convertible
+    by construction.
+
+    note that [apply] cannot be used in place of the [pattern] that follows:
+    guessing the predicate to induct on is a higher-order problem, and
+    [eapply ptower] on such a goal picks the constant solution, which lands
+    back on an unprovable [inf_closed] goal. *)
+Ltac normalize_elem c := try change (@elem _ _ _ c) with (elem c).
+
+
 (** * Starting a proof by coinduction
 
     [apply tower] on its own cannot always guess the predicate [P] to induct on,
@@ -233,7 +265,7 @@ Ltac gfp_intro_ c :=
 Tactic Notation "coinduction" ident(R) simple_intropattern(H) :=
   let c := fresh "coind_candidate" in
   gfp_intro_ c; rename c into R;
-  pattern (elem R); revert R;
+  normalize_elem R; pattern (elem R); revert R;
   apply tower; [ icauto | intro R; cbn beta; intros H ].
 
 (* Tower induction *)
@@ -244,7 +276,7 @@ Ltac clear_old_chain := lazymatch goal with
   | c : (Chain ?b) |- forall _ : (Chain ?b), _ => clear c; intro c end.
 
 Ltac tower_induction_with c :=
-    pattern (elem c);
+    normalize_elem c; pattern (elem c);
     apply tower;
     [icauto | try clear_old_chain].
 
@@ -304,7 +336,7 @@ Ltac uncurry_back n :=
   end.
 
 Ltac apply_ptower' R n :=
-  pattern (elem R);
+  normalize_elem R; pattern (elem R);
   lazymatch goal with
   | |- (fun z => @?Q z -> @?P z) _ =>
       cbn beta;
@@ -394,14 +426,24 @@ Tactic Notation "accumulate" simple_intropattern(H) :=
 
 
 
+(** [under_spine tac] runs [tac] under the leading binders of the goal. *)
+Ltac under_spine tac :=
+  lazymatch goal with
+  | |- forall _ : _, _ =>
+      intro; lazymatch goal with H : _ |- _ => under_spine tac; revert H end
+  | _ => tac
+  end.
+
 (** the [b] used to recognise the application in the goal is read off the type
-      of the supplied [R]. *)
+      of the supplied [R]. only conclusion occurrences are abstracted. *)
 Ltac begin_symmetry R :=
   lazymatch type of R with
   | @Chain _ _ ?b =>
       lazymatch goal with
       | |-context [@body ?X ?LX b ?x] =>
-          pattern (@body X LX b x);
+          under_spine ltac:(change (@body X LX b x)
+                              with ((fun T (a: T) => a) _ (@body X LX b x)));
+          pattern ((fun T (a: T) => a) _ (@body X LX b x));
           eapply by_symmetry'
       | _ => fail "could not find an application of the coinductive function in the goal"
       end
@@ -410,7 +452,16 @@ Ltac begin_symmetry R :=
 
 Ltac _revert_last := match goal with
 | H:_ |- _ => revert H
-end. 
+end.
+
+(** [P] respects [==], which at relations is pointwise [<->]. *)
+Ltac sym_weq_tac :=
+  let x := fresh "x" in let y := fresh "y" in
+  let E := fresh "E" in let HP := fresh "HP" in
+  intros x y E HP; cbv beta in *;
+  let E' := fresh "E" in
+  assert (E' : forall a c, x a c <-> y a c) by exact E;
+  setoid_rewrite <- E'; exact HP.
 
 Ltac apply_by_symmetry R tac :=
   (* first, extract the predicate [P] to use default_sym_tac) *)
@@ -423,9 +474,8 @@ Ltac apply_by_symmetry R tac :=
        [once] is needed to ensure the right error messages are
        propagated upwards from later tactics. *)
   try once typeclasses eauto
-  (* 2. [P] must be monotone. Here we use our user-facing
-        solver that dispatches simple monotonicity proofs. *)
-  | try (auto 20 with mon)
+  (* 2. [P] must respect [==]. *)
+  | try sym_weq_tac
   (* 3. [P] must be inf-closed. We do as in 2. *)
   | try icauto
   (* 4. [P] must have a symmetric shape. We do some tidying to first clean
