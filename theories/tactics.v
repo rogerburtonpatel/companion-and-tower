@@ -230,15 +230,18 @@ Ltac expose_gfp :=
       else fail 1 "[coinduction] no greatest fixpoint in the conclusion"
   end.
 
+(** The telescope is stripped with [intro] rather than by matching on a
+    syntactic [forall], so that binders hidden behind definitions are stripped
+    too.  For instance [gfp b <= gfp b'] is [forall x, gfp b x -> gfp b' x]
+    only after unfolding [leq]: its premise [gfp b x] must go to the context,
+    leaving [gfp b'] as the only candidate.  [intro] fails on [gfp b x]
+    itself since [gfp] is opaque. *)
 Ltac gfp_intro_ c :=
-  lazymatch goal with
-  | |- forall _ : _, _ =>
-      intro;
-      lazymatch goal with
-      | h: _ |- _ => gfp_intro_ c; revert h
-      end
-  | |- _ => expose_gfp; check_one_candidate; apply gfp_prop; intro c
-  end.
+  tryif intro then
+    lazymatch goal with
+    | h: _ |- _ => gfp_intro_ c; revert h
+    end
+  else (expose_gfp; check_one_candidate; apply gfp_prop; intro c).
 
 (** ** starting a proof by (enhanced) coinduction *)
 (** when the goal is of the shape
